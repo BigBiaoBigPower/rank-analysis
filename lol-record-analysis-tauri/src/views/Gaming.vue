@@ -17,19 +17,28 @@
       </n-button>
 
       <!-- AI 分析按钮 -->
-      <n-button
-        circle
-        secondary
-        type="info"
-        class="gaming-ai-btn"
-        :loading="aiLoading"
-        :disabled="!sessionData.phase || sessionData.phase === 'ChampSelect'"
-        @click="handleAIAnalysis"
+      <n-tooltip
+        v-model:show="showAITooltip"
+        placement="left"
+        :duration="5000"
       >
-        <template #icon>
-          <n-icon><sparkles-outline /></n-icon>
+        <template #trigger>
+          <n-button
+            circle
+            secondary
+            type="info"
+            class="gaming-ai-btn"
+            :loading="aiLoading"
+            :disabled="!sessionData.phase || sessionData.phase === 'ChampSelect'"
+            @click="handleAIAnalysis"
+          >
+            <template #icon>
+              <n-icon><sparkles-outline /></n-icon>
+            </template>
+          </n-button>
         </template>
-      </n-button>
+        ✨ AI分析功能：点击可智能分析双方阵容和玩家战绩
+      </n-tooltip>
 
       <n-modal v-model:show="showConfig" preset="card" title="显示设置" style="width: 400px">
         <n-form-item label="战绩显示数量">
@@ -232,6 +241,10 @@ const message = useMessage()
 const aiLoading = ref(false)
 const aiResult = ref('')
 const showAIResult = ref(false)
+const showAITooltip = ref(false)
+
+// AI 功能提示状态（内存中存储，每次打开软件只提示一次）
+let hasShownAITip = false
 
 // Markdown 渲染器
 const md = new MarkdownIt({
@@ -410,6 +423,19 @@ function updateTeamData(currentTeam: SessionSummoner[], newTeam: SessionSummoner
 
 onMounted(async () => {
   console.log('🔧 [DEBUG] Gaming page mounting...')
+
+  // 显示 AI 功能提示（每次打开软件只显示一次）
+  if (!hasShownAITip) {
+    setTimeout(() => {
+      showAITooltip.value = true
+      hasShownAITip = true
+
+      // 5秒后自动关闭提示
+      setTimeout(() => {
+        showAITooltip.value = false
+      }, 5000)
+    }, 2000) // 页面加载2秒后显示提示
+  }
 
   // 监听 session 完成事件
   unlistenSessionComplete = await listen<SessionData>('session-complete', event => {

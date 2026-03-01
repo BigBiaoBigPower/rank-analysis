@@ -119,7 +119,14 @@ impl LcuListener {
     async fn handle_event(&self, event: &Value) {
         if let Some(uri) = event.get("uri").and_then(|v| v.as_str()) {
             // 检查是否也是 data 字段，有些事件结构不一样
-            let _data = event.get("data");
+            let data = event.get("data");
+
+            // 如果是 phase 变化事件，更新缓存
+            if uri == "/lol-gameflow/v1/gameflow-phase" {
+                if let Some(phase) = data.and_then(|d| d.as_str()) {
+                    crate::lcu::api::phase::update_phase_cache(phase.to_string());
+                }
+            }
 
             // 分发事件
             // 根据需要的 URI 进行过滤，避免无效刷新

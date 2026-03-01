@@ -1,6 +1,7 @@
 //! # LCU 游戏阶段 API
 //!
 //! 对应 `lol-gameflow/v1/gameflow-phase`，返回当前阶段（如 ChampSelect、InProgress、EndOfGame 等）；带短时缓存。
+//! WebSocket 事件可直接更新缓存，避免重复 HTTP 请求。
 
 use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, Instant};
@@ -23,6 +24,14 @@ impl PhaseCache {
 }
 
 static PHASE_CACHE: LazyLock<Mutex<PhaseCache>> = LazyLock::new(|| Mutex::new(PhaseCache::new()));
+
+/// 更新 phase 缓存（供 WebSocket 事件调用）
+pub fn update_phase_cache(phase: String) {
+    let mut cache = PHASE_CACHE.lock().unwrap();
+    cache.last_phase = phase;
+    cache.last_fetch_time = Some(Instant::now());
+    log::debug!("Phase cache updated via WebSocket: {}", cache.last_phase);
+}
 
 /// 获取当前游戏流程阶段（2 秒内使用缓存）。
 pub async fn get_phase() -> Result<String, String> {

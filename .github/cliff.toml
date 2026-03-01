@@ -27,22 +27,25 @@ footer = """
 
 [git]
 conventional_commits = true
-filter_unconventional = false
+filter_unconventional = false  # 保留非规范的 commit
 split_commits = false
 commit_parsers = [
-    { message = "(?i)^feat", group = "🚀 Features" },
-    { message = "(?i)^fix", group = "🐛 Bug Fixes" },
-    { message = "(?i)^doc", group = "📚 Documentation" },
-    { message = "(?i)^perf", group = "⚡ Performance" },
-    { message = "(?i)^refactor", group = "🛠 Refactor" },
-    { message = "(?i)^style", group = "🎨 Styling" },
-    { message = "(?i)^test", group = "🧪 Testing" },
+    # 支持全角冒号和半角冒号
+    { message = "(?i)^feat[：:]", group = "🚀 Features" },
+    { message = "(?i)^fix[：:]", group = "🐛 Bug Fixes" },
+    { message = "(?i)^doc[：:]", group = "📚 Documentation" },
+    { message = "(?i)^perf[：:]", group = "⚡ Performance" },
+    { message = "(?i)^refactor[：:]", group = "🛠 Refactor" },
+    { message = "(?i)^style[：:]", group = "🎨 Styling" },
+    { message = "(?i)^test[：:]", group = "🧪 Testing" },
     { message = "^chore\\(release\\): prepare for", skip = true },
-    { message = "(?i)^chore", group = "⚙️ Miscellaneous" },
+    { message = "(?i)^chore[：:]", group = "⚙️ Miscellaneous" },
     { body = ".*security", group = "🛡️ Security" },
+    # 添加默认匹配，捕获所有其他 commit
+    { message = ".*", group = "📦 Other Changes" },
 ]
 protect_breaking_commits = false
-filter_commits = false
+filter_commits = false  # 不过滤任何 commit
 tag_pattern = "v?[0-9].*"
 skip_tags = "beta|alpha"
 

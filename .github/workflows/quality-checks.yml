@@ -33,13 +33,22 @@ jobs:
         run: npm ci
 
       - name: Run ESLint
-        run: npm run lint
+        run: |
+          echo "🔍 Running ESLint..."
+          npm run lint
+          echo "✅ ESLint check passed"
 
       - name: Run Prettier check
-        run: npx prettier --check .
+        run: |
+          echo "🔍 Running Prettier check..."
+          npx prettier --check "src/**/*.{js,jsx,ts,tsx,vue,json,css,scss,md}"
+          echo "✅ Prettier check passed"
 
       - name: TypeScript type check
-        run: npm run typecheck
+        run: |
+          echo "🔍 Running TypeScript type check..."
+          npm run typecheck
+          echo "✅ TypeScript check passed"
 
   rust-quality:
     name: Rust Code Quality

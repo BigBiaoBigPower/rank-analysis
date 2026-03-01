@@ -517,7 +517,7 @@ onMounted(async () => {
 // 监听路由查询参数变化
 watch(
   () => route.query.name,
-  (newName) => {
+  newName => {
     if (newName && typeof newName === 'string') {
       loadSummonerData(newName)
     }

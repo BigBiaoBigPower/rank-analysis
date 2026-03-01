@@ -65,7 +65,8 @@ export async function analyzeGameWithAI(
         messages: [
           {
             role: 'system',
-            content: '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁的中文回复，不要太长。'
+            content:
+              '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁的中文回复，不要太长。'
           },
           {
             role: 'user',
@@ -131,7 +132,10 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
     const tags = p.userTag?.tag || []
 
     // 统计英雄出场次数
-    const championStats: Record<number, { count: number; wins: number; totalKda: number; totalDamage: number }> = {}
+    const championStats: Record<
+      number,
+      { count: number; wins: number; totalKda: number; totalDamage: number }
+    > = {}
     recentGames.forEach((g: any) => {
       const champId = g.participants[0]?.championId
       if (!champId) return
@@ -140,7 +144,9 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
       }
       championStats[champId].count++
       if (g.participants[0].stats.win) championStats[champId].wins++
-      const kda = (g.participants[0].stats.kills + g.participants[0].stats.assists) / Math.max(g.participants[0].stats.deaths, 1)
+      const kda =
+        (g.participants[0].stats.kills + g.participants[0].stats.assists) /
+        Math.max(g.participants[0].stats.deaths, 1)
       championStats[champId].totalKda += kda
       championStats[champId].totalDamage += g.participants[0].stats.totalDamageDealtToChampions || 0
     })
@@ -160,19 +166,19 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
         champion: getChampionName(Number(champId)),
         games: (stats as any).count,
         winRate: Math.round(((stats as any).wins / (stats as any).count) * 100),
-        avgKda: ((stats as any).totalKda).toFixed(2),
+        avgKda: (stats as any).totalKda.toFixed(2),
         avgDamage: Math.round((stats as any).totalDamage)
       }))
 
     // 位置分析
     const positionStats: Record<string, number> = {}
     recentGames.forEach((g: any) => {
-      const pos = g.participants[0]?.timeline?.lane || g.participants[0]?.selectedPosition || 'UNKNOWN'
+      const pos =
+        g.participants[0]?.timeline?.lane || g.participants[0]?.selectedPosition || 'UNKNOWN'
       positionStats[pos] = (positionStats[pos] || 0) + 1
     })
 
-    const mainPosition = Object.entries(positionStats)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || '未知'
+    const mainPosition = Object.entries(positionStats).sort((a, b) => b[1] - a[1])[0]?.[0] || '未知'
 
     return {
       name: p.summoner?.gameName || '未知',
@@ -183,13 +189,14 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
       recentStats: {
         wins: p.userTag?.recentData?.selectWins || 0,
         losses: p.userTag?.recentData?.selectLosses || 0,
-        winRate: p.userTag?.recentData?.selectWins && p.userTag?.recentData?.selectLosses
-          ? Math.round(
-              (p.userTag.recentData.selectWins /
-                (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
-                100
-            )
-          : 0,
+        winRate:
+          p.userTag?.recentData?.selectWins && p.userTag?.recentData?.selectLosses
+            ? Math.round(
+                (p.userTag.recentData.selectWins /
+                  (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
+                  100
+              )
+            : 0,
         kda: p.userTag?.recentData?.kda?.toFixed(2) || '0.00',
         kills: p.userTag?.recentData?.kills?.toFixed(1) || '0.0',
         deaths: p.userTag?.recentData?.deaths?.toFixed(1) || '0.0',
@@ -213,7 +220,10 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
         kills: g.participants[0].stats.kills,
         deaths: g.participants[0].stats.deaths,
         assists: g.participants[0].stats.assists,
-        kda: ((g.participants[0].stats.kills + g.participants[0].stats.assists) / Math.max(g.participants[0].stats.deaths, 1)).toFixed(2),
+        kda: (
+          (g.participants[0].stats.kills + g.participants[0].stats.assists) /
+          Math.max(g.participants[0].stats.deaths, 1)
+        ).toFixed(2),
         damage: g.participants[0].stats.totalDamageDealtToChampions,
         gold: g.participants[0].stats.goldEarned,
         queue: g.queueName
@@ -226,7 +236,10 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
     const recentGames = p.matchHistory?.games?.games || []
     const tags = p.userTag?.tag || []
 
-    const championStats: Record<number, { count: number; wins: number; totalKda: number; totalDamage: number }> = {}
+    const championStats: Record<
+      number,
+      { count: number; wins: number; totalKda: number; totalDamage: number }
+    > = {}
     recentGames.forEach((g: any) => {
       const champId = g.participants[0]?.championId
       if (!champId) return
@@ -235,7 +248,9 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
       }
       championStats[champId].count++
       if (g.participants[0].stats.win) championStats[champId].wins++
-      const kda = (g.participants[0].stats.kills + g.participants[0].stats.assists) / Math.max(g.participants[0].stats.deaths, 1)
+      const kda =
+        (g.participants[0].stats.kills + g.participants[0].stats.assists) /
+        Math.max(g.participants[0].stats.deaths, 1)
       championStats[champId].totalKda += kda
       championStats[champId].totalDamage += g.participants[0].stats.totalDamageDealtToChampions || 0
     })
@@ -253,18 +268,18 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
         champion: getChampionName(Number(champId)),
         games: (stats as any).count,
         winRate: Math.round(((stats as any).wins / (stats as any).count) * 100),
-        avgKda: ((stats as any).totalKda).toFixed(2),
+        avgKda: (stats as any).totalKda.toFixed(2),
         avgDamage: Math.round((stats as any).totalDamage)
       }))
 
     const positionStats: Record<string, number> = {}
     recentGames.forEach((g: any) => {
-      const pos = g.participants[0]?.timeline?.lane || g.participants[0]?.selectedPosition || 'UNKNOWN'
+      const pos =
+        g.participants[0]?.timeline?.lane || g.participants[0]?.selectedPosition || 'UNKNOWN'
       positionStats[pos] = (positionStats[pos] || 0) + 1
     })
 
-    const mainPosition = Object.entries(positionStats)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || '未知'
+    const mainPosition = Object.entries(positionStats).sort((a, b) => b[1] - a[1])[0]?.[0] || '未知'
 
     return {
       name: p.summoner?.gameName || '未知',
@@ -274,13 +289,14 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
       recentStats: {
         wins: p.userTag?.recentData?.selectWins || 0,
         losses: p.userTag?.recentData?.selectLosses || 0,
-        winRate: p.userTag?.recentData?.selectWins && p.userTag?.recentData?.selectLosses
-          ? Math.round(
-              (p.userTag.recentData.selectWins /
-                (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
-                100
-            )
-          : 0,
+        winRate:
+          p.userTag?.recentData?.selectWins && p.userTag?.recentData?.selectLosses
+            ? Math.round(
+                (p.userTag.recentData.selectWins /
+                  (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
+                  100
+              )
+            : 0,
         kda: p.userTag?.recentData?.kda?.toFixed(2) || '0.00',
         groupRate: p.userTag?.recentData?.groupRate || 0,
         damageRate: p.userTag?.recentData?.damageDealtToChampionsRate || 0
@@ -298,7 +314,10 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
         kills: g.participants[0].stats.kills,
         deaths: g.participants[0].stats.deaths,
         assists: g.participants[0].stats.assists,
-        kda: ((g.participants[0].stats.kills + g.participants[0].stats.assists) / Math.max(g.participants[0].stats.deaths, 1)).toFixed(2),
+        kda: (
+          (g.participants[0].stats.kills + g.participants[0].stats.assists) /
+          Math.max(g.participants[0].stats.deaths, 1)
+        ).toFixed(2),
         queue: g.queueName
       }))
     }
@@ -347,7 +366,10 @@ function buildPlayerAnalysisPrompt(player: any): string {
   const tags = player.userTag?.tag || []
 
   // 英雄统计
-  const championStats: Record<number, { count: number; wins: number; totalKda: number; totalDamage: number }> = {}
+  const championStats: Record<
+    number,
+    { count: number; wins: number; totalKda: number; totalDamage: number }
+  > = {}
   recentGames.forEach((g: any) => {
     const champId = g.participants[0]?.championId
     if (!champId) return
@@ -356,7 +378,9 @@ function buildPlayerAnalysisPrompt(player: any): string {
     }
     championStats[champId].count++
     if (g.participants[0].stats.win) championStats[champId].wins++
-    const kda = (g.participants[0].stats.kills + g.participants[0].stats.assists) / Math.max(g.participants[0].stats.deaths, 1)
+    const kda =
+      (g.participants[0].stats.kills + g.participants[0].stats.assists) /
+      Math.max(g.participants[0].stats.deaths, 1)
     championStats[champId].totalKda += kda
     championStats[champId].totalDamage += g.participants[0].stats.totalDamageDealtToChampions || 0
   })
@@ -386,7 +410,10 @@ function buildPlayerAnalysisPrompt(player: any): string {
     kills: g.participants[0].stats.kills,
     deaths: g.participants[0].stats.deaths,
     assists: g.participants[0].stats.assists,
-    kda: ((g.participants[0].stats.kills + g.participants[0].stats.assists) / Math.max(g.participants[0].stats.deaths, 1)).toFixed(2),
+    kda: (
+      (g.participants[0].stats.kills + g.participants[0].stats.assists) /
+      Math.max(g.participants[0].stats.deaths, 1)
+    ).toFixed(2),
     damage: g.participants[0].stats.totalDamageDealtToChampions,
     gold: g.participants[0].stats.goldEarned,
     queue: g.queueName,

@@ -482,10 +482,12 @@ const recentData = ref<RecentData>(defaultRecentData())
 const route = useRoute()
 let name = ''
 
-onMounted(async () => {
-  await initModeOptions()
-  name = route.query.name as string
-  summoner.value = await invoke<Summoner>('get_summoner_by_name', { name: name })
+// 加载召唤师数据的函数
+const loadSummonerData = async (summonerName: string) => {
+  if (!summonerName) return
+
+  name = summonerName
+  summoner.value = await invoke<Summoner>('get_summoner_by_name', { name })
   rank.value = await invoke<Rank>('get_rank_by_name', { name })
   const modeValue = (await invoke<number>('get_config', { key: 'selectMode' })) || 0
   mode.value = modeOptions.value.find(option => option.key === modeValue)?.label || '全部'
@@ -502,7 +504,25 @@ onMounted(async () => {
   })
 
   getTags(name, modeValue)
+}
+
+onMounted(async () => {
+  await initModeOptions()
+  const nameFromQuery = route.query.name as string
+  if (nameFromQuery) {
+    await loadSummonerData(nameFromQuery)
+  }
 })
+
+// 监听路由查询参数变化
+watch(
+  () => route.query.name,
+  (newName) => {
+    if (newName && typeof newName === 'string') {
+      loadSummonerData(newName)
+    }
+  }
+)
 
 const mode = ref('全部')
 const updateModel = (value: string | number, option: any) => {

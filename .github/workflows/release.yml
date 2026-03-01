@@ -218,7 +218,7 @@ jobs:
 
       - name: 📝 Generate Changelog
         working-directory: .
-        run: git-cliff --config .github/cliff.toml --verbose --tag ${{ steps.get_version.outputs.tauri_version }} --latest --strip header --output lol-record-analysis-tauri/CHANGELOG.md
+        run: git-cliff --config .github/cliff.toml --verbose --unreleased --tag ${{ steps.get_version.outputs.tauri_version }} --strip header --output lol-record-analysis-tauri/CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

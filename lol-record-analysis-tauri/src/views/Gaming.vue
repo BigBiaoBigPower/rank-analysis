@@ -16,6 +16,21 @@
         </template>
       </n-button>
 
+      <!-- AI 分析按钮 -->
+      <n-button
+        circle
+        secondary
+        type="info"
+        class="gaming-ai-btn"
+        :loading="aiLoading"
+        :disabled="!sessionData.phase || sessionData.phase === 'ChampSelect'"
+        @click="handleAIAnalysis"
+      >
+        <template #icon>
+          <n-icon><sparkles-outline /></n-icon>
+        </template>
+      </n-button>
+
       <n-modal v-model:show="showConfig" preset="card" title="显示设置" style="width: 400px">
         <n-form-item label="战绩显示数量">
           <n-input-number
@@ -26,6 +41,11 @@
           />
         </n-form-item>
         <span class="gaming-config-hint">设置将在下一次刷新或对局时生效</span>
+      </n-modal>
+
+      <!-- AI 分析结果弹窗 -->
+      <n-modal v-model:show="showAIResult" preset="card" title="AI 分析" style="width: 600px">
+        <div class="ai-result-content" v-html="renderedAIResult"></div>
       </n-modal>
 
       <!-- 左我方、右敌方，由后端按 LCU 当前用户交换保证 -->
@@ -76,7 +96,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
-import { SettingsOutline } from '@vicons/ionicons5'
+import { SettingsOutline, SparklesOutline } from '@vicons/ionicons5'
 import { useMessage } from 'naive-ui'
 
 import unranked from '../assets/imgs/tier/unranked.png'
@@ -94,6 +114,8 @@ import LoadingComponent from '../components/LoadingComponent.vue'
 import PlayerCard from '../components/gaming/PlayerCard.vue'
 import { SessionData, SessionSummoner, PreGroupMarkers } from '../components/gaming/type'
 import { divisionOrPoint } from '../components/composition'
+import { analyzeGameWithAI } from '../services/ai'
+import MarkdownIt from 'markdown-it'
 /**
  * Returns the image path for the given rank tier.
  * This function dynamically requires the image based on the provided tier string,
@@ -206,6 +228,24 @@ const showConfig = ref(false)
 const matchCount = ref(4)
 const message = useMessage()
 
+// AI 分析相关
+const aiLoading = ref(false)
+const aiResult = ref('')
+const showAIResult = ref(false)
+
+// Markdown 渲染器
+const md = new MarkdownIt({
+  html: true,
+  breaks: true,
+  linkify: true
+})
+
+// 渲染后的 AI 结果（Markdown -> HTML）
+const renderedAIResult = computed(() => {
+  if (!aiResult.value) return ''
+  return md.render(aiResult.value)
+})
+
 const handleUpdateConfig = async (value: number | null) => {
   if (!value) return
   try {
@@ -213,6 +253,26 @@ const handleUpdateConfig = async (value: number | null) => {
     message.success('设置已保存')
   } catch (e) {
     message.error('保存失败')
+  }
+}
+
+// AI 分析处理
+const handleAIAnalysis = async () => {
+  if (aiLoading.value) return
+
+  aiLoading.value = true
+  try {
+    const result = await analyzeGameWithAI(sessionData, 'team')
+    if (result.success && result.content) {
+      aiResult.value = result.content
+      showAIResult.value = true
+    } else {
+      message.error(result.error || 'AI 分析失败')
+    }
+  } catch (e: any) {
+    message.error('AI 分析出错: ' + (e.message || '未知错误'))
+  } finally {
+    aiLoading.value = false
   }
 }
 
@@ -532,9 +592,111 @@ async function requestSessionData() {
   opacity: 0.6;
 }
 
+.gaming-ai-btn {
+  position: absolute;
+  right: 0;
+  top: calc(50% + 50px);
+  transform: translateY(-50%);
+  z-index: 100;
+  opacity: 0.6;
+}
+
 .gaming-config-hint {
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+.ai-result-content {
+  padding: var(--space-16);
+  line-height: 1.8;
+  font-size: 14px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+/* 标题样式 */
+.ai-result-content :deep(h1) {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 20px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 3px solid var(--n-primary-color);
+  color: var(--n-text-color);
+}
+
+.ai-result-content :deep(h2) {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 18px 0 10px 0;
+  padding-left: 12px;
+  border-left: 4px solid var(--n-primary-color);
+  color: var(--n-text-color);
+}
+
+.ai-result-content :deep(h3) {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 14px 0 8px 0;
+  color: var(--n-text-color);
+}
+
+/* 列表样式 */
+.ai-result-content :deep(ul),
+.ai-result-content :deep(ol) {
+  padding-left: 24px;
+  margin: 10px 0;
+}
+
+.ai-result-content :deep(li) {
+  margin: 8px 0;
+  line-height: 1.8;
+}
+
+/* 段落样式 */
+.ai-result-content :deep(p) {
+  margin: 10px 0;
+}
+
+/* 强调文本 */
+.ai-result-content :deep(strong) {
+  font-weight: 700;
+  color: var(--n-primary-color);
+}
+
+/* 高亮标记 - 正面（绿色）*/
+.ai-result-content :deep(mark) {
+  background: linear-gradient(120deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
+  color: #22c55e;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* 行内代码 - 用于负面标签（红色）*/
+.ai-result-content :deep(code) {
+  background: linear-gradient(120deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+  color: #ef4444;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+/* 引用块 */
+.ai-result-content :deep(blockquote) {
+  border-left: 4px solid var(--n-border-color);
+  padding-left: 16px;
+  margin: 12px 0;
+  color: var(--n-text-color-3);
+  font-style: italic;
+}
+
+/* 分隔线 */
+.ai-result-content :deep(hr) {
+  border: none;
+  border-top: 2px solid var(--n-border-color);
+  margin: 16px 0;
 }
 
 .gaming-columns {

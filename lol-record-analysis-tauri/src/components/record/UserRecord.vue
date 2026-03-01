@@ -396,7 +396,7 @@
 <script lang="ts" setup>
 import { assetPrefix } from '../../services/http'
 import { CopyOutline, AccessibilityOutline, FlashOutline, PulseOutline } from '@vicons/ionicons5'
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import MettingPlayersCard from '../gaming/MettingPlayersCard.vue'
 import {
   NCard,

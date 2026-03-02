@@ -211,6 +211,30 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_KEY_PASSWORD }}
 
+      - name: 🔍 Get Previous Tag
+        id: get_prev_tag
+        shell: pwsh
+        run: |
+          $currentTag = "${{ steps.get_version.outputs.tauri_version }}"
+          # 获取当前 tag 之前的最近一个 tag
+          $prevTag = git describe --tags --abbrev=0 HEAD~1 2>$null
+          if (-not $prevTag) {
+            # 如果没有找到，尝试获取所有 tag 并找前一个
+            $allTags = git tag --sort=-version:refname | Select-Object -First 10
+            Write-Host "Available tags: $allTags"
+            $currentIndex = $allTags.IndexOf($currentTag)
+            if ($currentIndex -ge 0 -and $currentIndex -lt ($allTags.Count - 1)) {
+              $prevTag = $allTags[$currentIndex + 1]
+            }
+          }
+          if (-not $prevTag) {
+            $prevTag = ""
+            Write-Host "No previous tag found, will generate changelog from start of history"
+          } else {
+            Write-Host "Previous tag: $prevTag"
+          }
+          echo "prev_tag=$prevTag" >> $env:GITHUB_OUTPUT
+
       - name: ⚡ Install git-cliff
         uses: taiki-e/install-action@v2
         with:
@@ -218,7 +242,18 @@ jobs:
 
       - name: 📝 Generate Changelog
         working-directory: .
-        run: git-cliff --config .github/cliff.toml --verbose --unreleased --tag ${{ steps.get_version.outputs.tauri_version }} --output lol-record-analysis-tauri/CHANGELOG.md
+        shell: pwsh
+        run: |
+          $currentTag = "${{ steps.get_version.outputs.tauri_version }}"
+          $prevTag = "${{ steps.get_prev_tag.outputs.prev_tag }}"
+
+          if ($prevTag) {
+            Write-Host "Generating changelog from $prevTag to $currentTag"
+            git-cliff --config .github/cliff.toml --verbose $prevTag..HEAD --tag $currentTag --output lol-record-analysis-tauri/CHANGELOG.md
+          } else {
+            Write-Host "Generating changelog for all history up to $currentTag"
+            git-cliff --config .github/cliff.toml --verbose --tag $currentTag --output lol-record-analysis-tauri/CHANGELOG.md
+          }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -290,8 +325,8 @@ jobs:
           SETUP_PATH: ${{ steps.prepare_assets.outputs.setup_path }}
           SIG_PATH: ${{ steps.prepare_assets.outputs.sig_path }}
 
-      # --- 一次创建 Release 并上传所有资源（避免分两次调用导致 body/版本显示异常）---
-      - name: 🚀 Create GitHub Release and Upload Assets
+      # --- 创建或更新 Release 并上传所有资源 ---
+      - name: 🚀 Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_version.outputs.tauri_version }}
@@ -303,6 +338,7 @@ jobs:
             lol-record-analysis-tauri/latest.json
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
 
 
   # --- 任务二：通知 UpgradeLink ---

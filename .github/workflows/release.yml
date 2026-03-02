@@ -216,24 +216,32 @@ jobs:
         shell: pwsh
         run: |
           $currentTag = "${{ steps.get_version.outputs.tauri_version }}"
-          # 获取当前 tag 之前的最近一个 tag
-          $prevTag = git describe --tags --abbrev=0 HEAD~1 2>$null
-          if (-not $prevTag) {
-            # 如果没有找到，尝试获取所有 tag 并找前一个
-            $allTags = git tag --sort=-version:refname | Select-Object -First 10
-            Write-Host "Available tags: $allTags"
-            $currentIndex = $allTags.IndexOf($currentTag)
-            if ($currentIndex -ge 0 -and $currentIndex -lt ($allTags.Count - 1)) {
-              $prevTag = $allTags[$currentIndex + 1]
+          Write-Host "Current tag: $currentTag"
+
+          # 获取所有 tag 按版本号降序排列
+          $allTags = git tag --sort=-version:refname 2>$null
+          Write-Host "All tags (sorted): $allTags"
+
+          # 找到当前 tag 在列表中的位置，取下一个作为 prevTag
+          $tagList = $allTags -split "`n" | Where-Object { $_ -ne "" }
+          $currentIndex = -1
+          for ($i = 0; $i -lt $tagList.Count; $i++) {
+            if ($tagList[$i] -eq $currentTag) {
+              $currentIndex = $i
+              break
             }
           }
-          if (-not $prevTag) {
-            $prevTag = ""
-            Write-Host "No previous tag found, will generate changelog from start of history"
+
+          Write-Host "Current tag index: $currentIndex"
+
+          if ($currentIndex -ge 0 -and ($currentIndex + 1) -lt $tagList.Count) {
+            $prevTag = $tagList[$currentIndex + 1]
+            Write-Host "Previous tag found: $prevTag"
+            echo "prev_tag=$prevTag" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "Previous tag: $prevTag"
+            Write-Host "No previous tag found, will generate changelog from start of history"
+            echo "prev_tag=" >> $env:GITHUB_OUTPUT
           }
-          echo "prev_tag=$prevTag" >> $env:GITHUB_OUTPUT
 
       - name: ⚡ Install git-cliff
         uses: taiki-e/install-action@v2
@@ -248,8 +256,8 @@ jobs:
           $prevTag = "${{ steps.get_prev_tag.outputs.prev_tag }}"
 
           if ($prevTag) {
-            Write-Host "Generating changelog from $prevTag to $currentTag"
-            git-cliff --config .github/cliff.toml --verbose $prevTag..HEAD --tag $currentTag --output lol-record-analysis-tauri/CHANGELOG.md
+            Write-Host "Generating changelog from $prevTag to HEAD (for $currentTag)"
+            git-cliff --config .github/cliff.toml --verbose "$prevTag..HEAD" --tag $currentTag --output lol-record-analysis-tauri/CHANGELOG.md
           } else {
             Write-Host "Generating changelog for all history up to $currentTag"
             git-cliff --config .github/cliff.toml --verbose --tag $currentTag --output lol-record-analysis-tauri/CHANGELOG.md

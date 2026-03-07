@@ -61,6 +61,8 @@ pub struct Stats {
     pub perk_primary_style: i32,
     #[serde(rename = "perkSubStyle")]
     pub perk_sub_style: i32,
+    #[serde(rename = "perk0", default)]
+    pub perk0: i32,
     pub kills: i32,
     pub deaths: i32,
     pub assists: i32,
@@ -78,6 +80,10 @@ pub struct Stats {
     pub total_heal: i32,
     #[serde(rename = "totalMinionsKilled")]
     pub total_minions_killed: i32,
+    #[serde(rename = "neutralMinionsKilled", default)]
+    pub neutral_minions_killed: i32,
+    #[serde(rename = "damageDealtToTurrets", default)]
+    pub damage_dealt_to_turrets: i32,
 
     // Calculated data - if these are derived and not directly in JSON,
     // you might not include them in the struct for deserialization,

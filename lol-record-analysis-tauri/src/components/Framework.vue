@@ -1,6 +1,7 @@
 <template>
   <div class="full-container">
-    <n-flex vertical size="large">
+    <MatchDetail v-if="isStandaloneDetailWindow" />
+    <n-flex v-else vertical size="large">
       <!-- 整体布局 -->
       <n-layout>
         <!-- 顶部区域 -->
@@ -32,12 +33,16 @@
 <script lang="ts" setup>
 import Header from './Header.vue'
 import SideNavigation from './SideNavigation.vue'
+import MatchDetail from '../views/MatchDetail.vue'
 import { computed, onMounted } from 'vue'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useRoute } from 'vue-router'
 import { useGameState } from '../composables/useGameState'
 
 const route = useRoute()
+const currentWindow = getCurrentWindow()
 const isSettingsRoute = computed(() => route.path.startsWith('/Settings'))
+const isStandaloneDetailWindow = computed(() => currentWindow.label.startsWith('match-detail-'))
 
 // 使用 GameState composable，其中包含了自动跳转逻辑
 useGameState()

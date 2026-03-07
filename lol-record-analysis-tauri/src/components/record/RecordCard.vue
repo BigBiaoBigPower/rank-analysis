@@ -4,6 +4,10 @@
     class="win-class"
     :class="{ 'defeat-class': !games.participants[0].stats.win }"
     :style="cardStyle"
+    role="button"
+    tabindex="0"
+    @click="openDetail"
+    @keyup.enter="openDetail"
   >
     <n-flex align="center" justify="space-between">
       <n-flex vertical style="gap: 1px">
@@ -69,204 +73,62 @@
           </span>
           <span class="record-card-spell-icons">
             <img
-              :src="
-                assetPrefix + '/spell/' + games.participants[0].spell1Id
-                  ? assetPrefix + '/spell/' + games.participants[0].spell1Id
-                  : itemNull
-              "
+              :src="spellSrc(games.participants[0].spell1Id)"
               class="record-card-icon-slot"
               alt="spell"
             />
             <img
-              :src="
-                assetPrefix + '/spell/' + games.participants[0].spell2Id
-                  ? assetPrefix + '/spell/' + games.participants[0].spell2Id
-                  : itemNull
-              "
+              :src="spellSrc(games.participants[0].spell2Id)"
               class="record-card-icon-slot"
               alt="spell"
             />
           </span>
         </n-flex>
         <n-flex class="record-card-item-slots" style="gap: 2px">
-          <n-image
-            width="23px"
-            :src="assetPrefix + '/item/' + games.participants[0].stats?.item0"
-            preview-disabled
-            :fallback-src="itemNull"
+          <n-tooltip
+            v-for="(itemId, index) in itemIds(games.participants[0].stats)"
+            :key="`record-item-${index}`"
+            trigger="hover"
+            placement="top"
+            :disabled="!assetDetail(itemId)"
           >
-          </n-image>
-          <n-image
-            width="23px"
-            :src="assetPrefix + '/item/' + games.participants[0].stats?.item1"
-            preview-disabled
-            :fallback-src="itemNull"
-          >
-          </n-image>
-          <n-image
-            width="23px"
-            :src="assetPrefix + '/item/' + games.participants[0].stats?.item2"
-            preview-disabled
-            :fallback-src="itemNull"
-          >
-          </n-image>
-          <n-image
-            width="23px"
-            :src="assetPrefix + '/item/' + games.participants[0].stats?.item3"
-            preview-disabled
-            :fallback-src="itemNull"
-          >
-          </n-image>
-          <n-image
-            width="23px"
-            :src="assetPrefix + '/item/' + games.participants[0].stats?.item4"
-            preview-disabled
-            :fallback-src="itemNull"
-          >
-          </n-image>
-          <n-image
-            width="23px"
-            :src="assetPrefix + '/item/' + games.participants[0].stats?.item5"
-            preview-disabled
-            fallback-src="https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg"
-          >
-            <template #error>
-              <img :src="itemNull" />
+            <template #trigger>
+              <img :src="itemSrc(itemId)" class="record-card-icon-slot" alt="item" />
             </template>
-          </n-image>
-          <n-image
-            width="23px"
-            :src="assetPrefix + '/item/' + games.participants[0].stats?.item6"
-            preview-disabled
-            :fallback-src="itemNull"
-          >
-          </n-image>
+            <AssetTooltipContent
+              v-if="assetDetail(itemId)"
+              :icon-src="itemSrc(itemId)"
+              :name="assetDetail(itemId)?.name ?? ''"
+              :description="assetDetail(itemId)?.description ?? ''"
+            />
+          </n-tooltip>
         </n-flex>
       </n-flex>
       <div class="record-card-stats-block">
-        <div class="record-card-stat-row">
-          <n-tooltip trigger="hover" placement="top">
-            <template #trigger>
-              <div class="record-card-stat-icon-wrap record-card-stat-icon-damage">
-                <n-icon size="11"><FlameOutline /></n-icon>
-              </div>
-            </template>
-            对英雄伤害占比
-          </n-tooltip>
-          <div
-            class="record-card-stat-dots"
-            :style="{
-              '--stat-dot-color': otherColor(
-                games.participants[0].stats?.damageDealtToChampionsRate,
-                isDark
-              )
-            }"
-          >
-            <span
-              v-for="i in 5"
-              :key="i"
-              class="stat-dot"
-              :class="{
-                'stat-dot-filled':
-                  i <= dotFillCount(games.participants[0].stats?.damageDealtToChampionsRate)
-              }"
-            />
-          </div>
-          <div class="record-card-stat-values">
-            <span class="font-number"
-              >{{
-                Math.round(games.participants[0].stats?.totalDamageDealtToChampions / 1000)
-              }}k</span
-            >
-            <span
-              class="font-number"
-              :style="{
-                color: otherColor(games.participants[0].stats?.damageDealtToChampionsRate, isDark)
-              }"
-            >
-              {{ games.participants[0].stats?.damageDealtToChampionsRate }}%
-            </span>
-          </div>
-        </div>
-
-        <div class="record-card-stat-row">
-          <n-tooltip trigger="hover" placement="top">
-            <template #trigger>
-              <div class="record-card-stat-icon-wrap record-card-stat-icon-tank">
-                <n-icon size="11"><ShieldOutline /></n-icon>
-              </div>
-            </template>
-            承伤占比
-          </n-tooltip>
-          <div
-            class="record-card-stat-dots"
-            :style="{
-              '--stat-dot-color': healColorAndTaken(
-                games.participants[0].stats?.damageTakenRate,
-                isDark
-              )
-            }"
-          >
-            <span
-              v-for="i in 5"
-              :key="i"
-              class="stat-dot"
-              :class="{
-                'stat-dot-filled': i <= dotFillCount(games.participants[0].stats?.damageTakenRate)
-              }"
-            />
-          </div>
-          <div class="record-card-stat-values">
-            <span class="font-number"
-              >{{ Math.round(games.participants[0].stats?.totalDamageTaken / 1000) }}k</span
-            >
-            <span
-              class="font-number"
-              :style="{
-                color: healColorAndTaken(games.participants[0].stats?.damageTakenRate, isDark)
-              }"
-            >
-              {{ games.participants[0].stats?.damageTakenRate }}%
-            </span>
-          </div>
-        </div>
-
-        <div class="record-card-stat-row">
-          <n-tooltip trigger="hover" placement="top">
-            <template #trigger>
-              <div class="record-card-stat-icon-wrap record-card-stat-icon-heal">
-                <n-icon size="11"><HeartOutline /></n-icon>
-              </div>
-            </template>
-            治疗占比
-          </n-tooltip>
-          <div
-            class="record-card-stat-dots"
-            :style="{
-              '--stat-dot-color': healColorAndTaken(games.participants[0].stats?.healRate, isDark)
-            }"
-          >
-            <span
-              v-for="i in 5"
-              :key="i"
-              class="stat-dot"
-              :class="{
-                'stat-dot-filled': i <= dotFillCount(games.participants[0].stats?.healRate)
-              }"
-            />
-          </div>
-          <div class="record-card-stat-values">
-            <span class="font-number"
-              >{{ Math.round(games.participants[0].stats?.totalHeal / 1000) }}k</span
-            >
-            <span
-              class="font-number"
-              :style="{ color: healColorAndTaken(games.participants[0].stats?.healRate, isDark) }"
-            >
-              {{ games.participants[0].stats?.healRate }}%
-            </span>
-          </div>
-        </div>
+        <StatDots
+          :icon="FlameOutline"
+          tooltip="对英雄伤害占比"
+          :color="otherColor(games.participants[0].stats?.damageDealtToChampionsRate, isDark)"
+          :icon-background="isDark ? 'rgba(229, 167, 50, 0.18)' : 'rgba(229, 167, 50, 0.14)'"
+          :value="formatCompactNumber(games.participants[0].stats?.totalDamageDealtToChampions ?? 0)"
+          :percent="games.participants[0].stats?.damageDealtToChampionsRate ?? 0"
+        />
+        <StatDots
+          :icon="ShieldOutline"
+          tooltip="承伤占比"
+          :color="healColorAndTaken(games.participants[0].stats?.damageTakenRate, isDark)"
+          :icon-background="isDark ? 'rgba(92, 163, 234, 0.2)' : 'rgba(92, 163, 234, 0.12)'"
+          :value="formatCompactNumber(games.participants[0].stats?.totalDamageTaken ?? 0)"
+          :percent="games.participants[0].stats?.damageTakenRate ?? 0"
+        />
+        <StatDots
+          :icon="HeartOutline"
+          tooltip="治疗占比"
+          :color="healColorAndTaken(games.participants[0].stats?.healRate, isDark)"
+          :icon-background="isDark ? 'rgba(88, 182, 109, 0.2)' : 'rgba(88, 182, 109, 0.14)'"
+          :value="formatCompactNumber(games.participants[0].stats?.totalHeal ?? 0)"
+          :percent="games.participants[0].stats?.healRate ?? 0"
+        />
       </div>
       <n-flex vertical justify="space-between" style="gap: 0px">
         <n-tag :bordered="false" size="small">
@@ -276,6 +138,7 @@
                 <template #trigger>
                   <n-button
                     text
+                    @click.stop
                     @click="
                       toNameRecord(
                         games.gameDetail.participantIdentities[i - 1].player.gameName +
@@ -319,6 +182,7 @@
                 <template #trigger>
                   <n-button
                     text
+                    @click.stop
                     @click="
                       toNameRecord(
                         games.gameDetail.participantIdentities[i + 4]?.player.gameName +
@@ -362,12 +226,16 @@
 <script lang="ts" setup>
 import { Time, CalendarNumber, FlameOutline, ShieldOutline, HeartOutline } from '@vicons/ionicons5'
 import itemNull from '../../assets/imgs/item/null.png'
-import { computed } from 'vue'
-import { Game } from './MatchHistory.vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { healColorAndTaken, otherColor } from './composition'
+import { formatCompactNumber, healColorAndTaken, otherColor } from './composition'
 import { assetPrefix } from '../../services/http'
 import { useSettingsStore } from '../../pinia/setting'
+import type { Game } from './match'
+import type { ParticipantStats } from './match'
+import AssetTooltipContent from './AssetTooltipContent.vue'
+import { getAssetDetailsByIpc, type AssetDetail } from '../../services/ipc'
+import StatDots from './StatDots.vue'
 
 const settingsStore = useSettingsStore()
 const isDark = computed(
@@ -419,6 +287,10 @@ const props = defineProps<{
   games: Game
 }>()
 
+const emit = defineEmits<{
+  'open-detail': []
+}>()
+
 const formattedDate = computed(() => {
   const date = new Date(props.games.gameCreationDate)
   // const year = date.getFullYear();
@@ -446,9 +318,53 @@ function toNameRecord(name: string) {
   }) // 添加动态时间戳作为查询参数
 }
 
-/** 将占比 0–100 映射为 5 个圆点中填充的数量 */
-function dotFillCount(rate: number | undefined): number {
-  return Math.min(5, Math.max(0, Math.round(((rate ?? 0) / 100) * 5)))
+function spellSrc(spellId: number) {
+  return spellId > 0 ? `${assetPrefix}/spell/${spellId}` : itemNull
+}
+
+function itemSrc(itemId: number) {
+  return itemId > 0 ? `${assetPrefix}/item/${itemId}` : itemNull
+}
+
+function itemIds(stats: ParticipantStats) {
+  return [stats.item0, stats.item1, stats.item2, stats.item3, stats.item4, stats.item5, stats.item6]
+}
+
+const itemDetails = ref<Record<number, AssetDetail>>({})
+
+const itemIdsToLoad = computed(() => {
+  const stats = props.games.participants[0].stats
+  return [...new Set(itemIds(stats).filter(itemId => itemId > 0))]
+})
+
+watch(
+  itemIdsToLoad,
+  async ids => {
+    if (!ids.length) {
+      itemDetails.value = {}
+      return
+    }
+
+    try {
+      const details = await getAssetDetailsByIpc('item', ids)
+      itemDetails.value = Object.fromEntries(details.map(detail => [detail.id, detail]))
+    } catch (error) {
+      console.error('failed to load record card item details', error)
+      itemDetails.value = {}
+    }
+  },
+  { immediate: true }
+)
+
+function assetDetail(itemId: number) {
+  if (itemId <= 0) {
+    return null
+  }
+  return itemDetails.value[itemId] ?? null
+}
+
+function openDetail() {
+  emit('open-detail')
 }
 </script>
 
@@ -475,6 +391,7 @@ function dotFillCount(rate: number | undefined): number {
   --n-border: 1px solid var(--semantic-win);
   --n-border-hover: 1px solid var(--semantic-win);
   --n-border-pressed: 1px solid var(--semantic-win);
+  cursor: pointer;
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast),
@@ -490,6 +407,7 @@ function dotFillCount(rate: number | undefined): number {
   --n-border: 1px solid var(--semantic-loss);
   --n-border-hover: 1px solid var(--semantic-loss);
   --n-border-pressed: 1px solid var(--semantic-loss);
+  cursor: pointer;
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast),
@@ -553,116 +471,6 @@ function dotFillCount(rate: number | undefined): number {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.record-card-stat-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 16px;
-  padding: 2px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-  letter-spacing: 0.02em;
-}
-
-.record-card-stat-row:last-child {
-  border-bottom: none;
-}
-
-.theme-light .record-card-stat-row {
-  border-bottom-color: rgba(0, 0, 0, 0.06);
-}
-
-.record-card-stat-icon-wrap {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--stat-color);
-}
-
-.record-card-stat-icon-damage {
-  background: rgba(229, 167, 50, 0.18);
-  color: #c9941e;
-}
-
-.theme-light .record-card-stat-icon-damage {
-  background: rgba(229, 167, 50, 0.14);
-  color: #b8860b;
-}
-
-.record-card-stat-icon-tank {
-  background: rgba(92, 163, 234, 0.2);
-  color: #4a8fc9;
-}
-
-.theme-light .record-card-stat-icon-tank {
-  background: rgba(92, 163, 234, 0.12);
-  color: #0369a1;
-}
-
-.record-card-stat-icon-heal {
-  background: rgba(88, 182, 109, 0.2);
-  color: #3d9b5a;
-}
-
-.theme-light .record-card-stat-icon-heal {
-  background: rgba(88, 182, 109, 0.14);
-  color: #2d8a6c;
-}
-
-/* 圆点进度：5 个点表示占比 */
-.record-card-stat-dots {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.stat-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--border-subtle);
-  flex-shrink: 0;
-  transition: background 0.2s ease;
-}
-
-/* 亮色主题下五个点（未填充）可见 */
-.theme-light .stat-dot {
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.stat-dot-filled {
-  background: var(--stat-dot-color) !important;
-}
-
-.record-card-stat-values {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
-  flex-shrink: 0;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-}
-
-/* 数值(53k)用次要色，占比(26%)用语义色，层次更清晰 */
-.record-card-stat-values .font-number:first-child {
-  color: var(--text-tertiary);
-  font-weight: 500;
-  width: 24px;
-  text-align: right;
-}
-
-.record-card-stat-values .font-number:last-child {
-  font-weight: 600;
-  width: 26px;
-  text-align: right;
-}
-
 .record-card-meta {
   color: var(--text-secondary);
   font-size: 11px;
@@ -680,6 +488,17 @@ function dotFillCount(rate: number | undefined): number {
   box-sizing: border-box;
   object-fit: contain;
 }
+
+.record-card-item-slots .record-card-icon-slot {
+  width: 23px;
+  height: 23px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  box-sizing: border-box;
+  object-fit: contain;
+}
+
 .record-card-spell-icons {
   display: inline-flex;
   gap: 2px;

@@ -39,7 +39,7 @@
           :style="{ '--stagger-i': index }"
           class="list-item"
         >
-          <RecordCard :record-type="true" :games="game" />
+          <RecordCard :record-type="true" :games="game" @open-detail="openDetail(game)" />
         </div>
       </TransitionGroup>
 
@@ -90,6 +90,8 @@ import { renderSingleSelectTag, renderLabel, filterChampionFunc } from '../compo
 import { modeOptions, initModeOptions } from './composition'
 import { invoke } from '@tauri-apps/api/core'
 import { championOption } from '../type'
+import type { Game, MatchHistory } from './match'
+import { openMatchDetailWindow } from './detailWindow'
 
 const filterQueueId = ref(0)
 const filterChampionId = ref(-1)
@@ -110,100 +112,6 @@ const handleUpdateValue = () => {
   }
 }
 
-// 类型定义
-export interface GameDetail {
-  endOfGameResult: string
-  participantIdentities: {
-    player: {
-      accountId: string
-      platformId: string
-      gameName: string
-      tagLine: string
-      summonerName: string
-      summonerId: string
-    }
-  }[]
-  participants: {
-    teamId: number
-    participantId: number
-    championId: number
-    summonerName: string
-    summonerId: string
-  }[]
-}
-
-export interface ParticipantStats {
-  win: boolean
-  item0: number
-  item1: number
-  item2: number
-  item3: number
-  item4: number
-  item5: number
-  item6: number
-  perkPrimaryStyle: number
-  perkSubStyle: number
-  kills: number
-  deaths: number
-  assists: number
-  goldEarned: number
-  goldSpent: number
-  totalDamageDealtToChampions: number
-  totalDamageDealt: number
-  totalDamageTaken: number
-  totalHeal: number
-  totalMinionsKilled: number
-  groupRate: number
-  goldEarnedRate: number
-  damageDealtToChampionsRate: number
-  damageTakenRate: number
-  healRate: number
-}
-
-export interface Participant {
-  win: boolean
-  participantId: number
-  teamId: number
-  championId: number
-  spell1Id: number
-  spell2Id: number
-  stats: ParticipantStats
-}
-
-export interface Game {
-  mvp: string
-  gameDetail: GameDetail
-  gameId: number
-  gameCreationDate: string
-  gameDuration: number
-  gameMode: string
-  gameType: string
-  mapId: number
-  queueId: number
-  queueName: number
-  participantIdentities: {
-    player: {
-      accountId: string
-      platformId: string
-      gameName: string
-      tagLine: string
-      summonerName: string
-      summonerId: string
-    }
-  }[]
-  participants: Participant[]
-}
-
-export interface MatchHistory {
-  platformId: string
-  begIndex: number
-  endIndex: number
-  games: {
-    gameDetail: GameDetail
-    games: Game[]
-  }
-}
-
 const matchHistory = ref<MatchHistory>()
 const loadingBar = useLoadingBar()
 const isRequestingMatchHostory = ref(false)
@@ -215,6 +123,10 @@ let curEndIndex = 0
 
 const route = useRoute()
 let name = ''
+
+async function openDetail(game: Game) {
+  await openMatchDetailWindow(game)
+}
 
 // 获取历史记录
 const getHistoryMatch = async (name: string, begIndex: number, endIndex: number) => {

@@ -12,6 +12,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/Record.vue') // 懒加载
   },
   {
+    path: '/MatchDetail',
+    name: 'MatchDetail',
+    component: () => import('../views/MatchDetail.vue')
+  },
+  {
     path: '/Gaming',
     name: 'Gaming',
     component: () => import('../views/Gaming.vue') // 懒加载

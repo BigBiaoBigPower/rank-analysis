@@ -1,8 +1,9 @@
 //! # Command 模块
 //!
 //! 暴露给前端的 Tauri 命令（Commands），封装 LCU API 调用与业务逻辑。
-//! 子模块：config、fandom、info、match_history、rank、session、user_tag、user_tag_config。
+//! 子模块：asset、config、fandom、info、match_history、rank、session、user_tag、user_tag_config。
 
+pub mod asset;
 pub mod config;
 pub mod fandom;
 pub mod info;

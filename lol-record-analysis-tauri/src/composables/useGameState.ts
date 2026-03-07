@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import router from '../router'
 
 export interface GameStateEvent {
@@ -48,10 +49,23 @@ export function useGameState() {
   let unlistenState: UnlistenFn | null = null
   let unlistenSession: UnlistenFn | null = null
   let lastPhase = ''
+  const currentWindow = getCurrentWindow()
+
+  function isStandaloneDetailRoute() {
+    return currentWindow.label.startsWith('match-detail-')
+  }
 
   onMounted(async () => {
+    if (isStandaloneDetailRoute()) {
+      return
+    }
+
     // 1. 监听游戏状态 (连接/断开)
     unlistenState = await listen<GameStateEvent>('game-state-changed', event => {
+      if (isStandaloneDetailRoute()) {
+        return
+      }
+
       const state = event.payload
       console.log('🎮 Game state changed:', state)
 
@@ -65,6 +79,10 @@ export function useGameState() {
 
     // 2. 监听会话状态 (选人/游戏中)
     unlistenSession = await listen<SessionData>('session-complete', event => {
+      if (isStandaloneDetailRoute()) {
+        return
+      }
+
       const data = event.payload
       const phase = data.phase
 
@@ -94,6 +112,10 @@ export function useGameState() {
    */
   function handleConnectionRoute(state: GameStateEvent) {
     const currentPath = router.currentRoute.value.path
+
+    if (isStandaloneDetailRoute() || currentPath === '/MatchDetail') {
+      return
+    }
 
     if (state.connected && state.summoner) {
       // 游戏客户端已连接，且当前在 Loading 页，则跳转首页 (Record)

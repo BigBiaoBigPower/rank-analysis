@@ -2,8 +2,9 @@ use crate::{
     constant,
     lcu::util::http::{self, lcu_get},
 };
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{LazyLock, RwLock};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -20,6 +21,9 @@ pub struct Champion {
 #[serde(rename_all = "camelCase")]
 pub struct Item {
     pub id: i64,
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
     pub icon_path: String,
 }
 
@@ -27,7 +31,36 @@ pub struct Item {
 #[serde(rename_all = "camelCase")]
 pub struct Perk {
     pub id: i64,
+    pub name: String,
+    #[serde(default)]
+    pub tooltip: String,
+    #[serde(default)]
+    pub short_desc: String,
+    #[serde(default)]
+    pub long_desc: String,
     pub icon_path: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PerkStyle {
+    pub id: i64,
+    pub name: String,
+    pub icon_path: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PerkStylesResponse {
+    pub styles: Vec<PerkStyle>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetDetails {
+    pub id: i64,
+    pub name: String,
+    pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -44,9 +77,12 @@ pub static CHAMPION_CACHE: LazyLock<RwLock<HashMap<i64, Champion>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 static ITEM_CACHE: LazyLock<RwLock<HashMap<i64, Item>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
-// static PERK_CACHE: LazyLock<RwLock<HashMap<i64, Perk>>> = LazyLock::new(|| RwLock::new(HashMap::new()));
+static PERK_CACHE: LazyLock<RwLock<HashMap<i64, Perk>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 static SPELL_CACHE: LazyLock<RwLock<HashMap<i64, Spell>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
+static ASSET_TAG_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"<[^>]+>").expect("valid asset html regex"));
 
 // Keep binary cache as moka for weighted size-based eviction (still useful) - optional future refactor.
 use moka::future::Cache; // retained only for BINARY_CACHE
@@ -65,13 +101,31 @@ pub async fn init() {
     let spells = lcu_get::<Vec<Spell>>(constant::api::SPELL_URI)
         .await
         .unwrap();
-    // let perks = lcu_get::<Vec<Perk>>(constant::api::PERK_URI).await.unwrap();
+    let perk_styles = lcu_get::<PerkStylesResponse>(constant::api::PERK_URI)
+        .await
+        .unwrap();
+    let perks = lcu_get::<Vec<Perk>>(constant::api::PERKS_URI)
+        .await
+        .unwrap();
+    let perk_styles_only: Vec<Perk> = perk_styles
+        .styles
+        .into_iter()
+        .map(|perk_style| Perk {
+            id: perk_style.id,
+            name: perk_style.name,
+            tooltip: String::new(),
+            short_desc: String::new(),
+            long_desc: String::new(),
+            icon_path: perk_style.icon_path,
+        })
+        .collect();
 
     // 先记录长度，避免后续 move
     let item_count = items.len();
     let champion_count = champions.len();
     let spell_count = spells.len();
-    // let perk_count = perks.len();
+    let perk_style_count = perk_styles_only.len();
+    let perk_count = perks.len();
 
     // 将数据存储到缓存中
     {
@@ -92,14 +146,20 @@ pub async fn init() {
             map.insert(spell.id, spell);
         }
     }
-    // {
-    //     let mut map = PERK_CACHE.write().unwrap();
-    //     for perk in perks { map.insert(perk.id, perk); }
-    // }
+    {
+        let mut map = PERK_CACHE.write().unwrap();
+        for perk in perk_styles_only {
+            map.insert(perk.id, perk);
+        }
+        for perk in perks {
+            map.insert(perk.id, perk);
+        }
+    }
     log::info!("item count: {}", item_count);
     log::info!("champion count: {}", champion_count);
     log::info!("spell count: {}", spell_count);
-    // log::info!("perk count: {}", perk_count);
+    log::info!("perk style count: {}", perk_style_count);
+    log::info!("perk count: {}", perk_count);
     log::info!("Asset API caches initialized successfully");
 }
 
@@ -113,6 +173,7 @@ pub async fn get_asset_binary(type_string: String, id: i64) -> Result<(Vec<u8>, 
     let result = match type_string.as_str() {
         "champion" => get_champion_binary(id).await,
         "item" => get_item_binary(id).await,
+        "perk" => get_perk_binary(id).await,
         "spell" => get_spell_binary(id).await,
         "profile" => get_profile_binary(id).await,
         _ => Err("Invalid type string".to_string()),
@@ -170,6 +231,20 @@ async fn get_spell_binary(id: i64) -> Result<(Vec<u8>, String), String> {
     }
 }
 
+async fn get_perk_binary(id: i64) -> Result<(Vec<u8>, String), String> {
+    let perk = {
+        let cache = PERK_CACHE.read().unwrap();
+        cache.get(&id).cloned()
+    };
+    match perk {
+        Some(perk) => {
+            log::info!("Getting perk binary for id {}", id);
+            fetch_binary(&perk.icon_path).await
+        }
+        None => Err(format!("Perk with id {} not found in cache", id)),
+    }
+}
+
 async fn get_profile_binary(id: i64) -> Result<(Vec<u8>, String), String> {
     log::info!("Getting profile binary for id {}", id);
     let profile_url = format!("/lol-game-data/assets/v1/profile-icons/{}.jpg", id);
@@ -178,4 +253,111 @@ async fn get_profile_binary(id: i64) -> Result<(Vec<u8>, String), String> {
 
 fn build_asset_key(type_string: &str, id: i64) -> String {
     format!("{}:{}", type_string, id)
+}
+
+pub fn get_asset_details(type_string: String, ids: Vec<i64>) -> Result<Vec<AssetDetails>, String> {
+    match type_string.as_str() {
+        "item" => Ok(get_item_details(ids)),
+        "perk" => Ok(get_perk_details(ids)),
+        _ => Err("Invalid type string".to_string()),
+    }
+}
+
+fn get_item_details(ids: Vec<i64>) -> Vec<AssetDetails> {
+    let cache = ITEM_CACHE.read().unwrap();
+    collect_unique_ids(ids)
+        .into_iter()
+        .filter_map(|id| {
+            cache.get(&id).map(|item| AssetDetails {
+                id,
+                name: item.name.clone(),
+                description: normalize_asset_text(&item.description).unwrap_or_default(),
+            })
+        })
+        .collect()
+}
+
+fn get_perk_details(ids: Vec<i64>) -> Vec<AssetDetails> {
+    let cache = PERK_CACHE.read().unwrap();
+    collect_unique_ids(ids)
+        .into_iter()
+        .filter_map(|id| {
+            cache.get(&id).map(|perk| AssetDetails {
+                id,
+                name: perk.name.clone(),
+                description: normalize_asset_text(&perk.long_desc)
+                    .or_else(|| normalize_asset_text(&perk.tooltip))
+                    .or_else(|| normalize_asset_text(&perk.short_desc))
+                    .unwrap_or_default(),
+            })
+        })
+        .collect()
+}
+
+fn collect_unique_ids(ids: Vec<i64>) -> Vec<i64> {
+    let mut seen = HashSet::new();
+    let mut result = Vec::new();
+
+    for id in ids {
+        if id <= 0 || !seen.insert(id) {
+            continue;
+        }
+        result.push(id);
+    }
+
+    result
+}
+
+fn normalize_asset_text(raw: &str) -> Option<String> {
+    if raw.trim().is_empty() {
+        return None;
+    }
+
+    let with_breaks = raw
+        .replace("<br />", "\n")
+        .replace("<br/>", "\n")
+        .replace("<br>", "\n")
+        .replace("<hr />", "\n")
+        .replace("<hr/>", "\n")
+        .replace("<hr>", "\n")
+        .replace("</li>", "\n")
+        .replace("<li>", "• ")
+        .replace("</p>", "\n")
+        .replace("<p>", "");
+
+    let without_tags = ASSET_TAG_REGEX.replace_all(&with_breaks, "");
+    let decoded = without_tags
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'");
+
+    let mut lines = Vec::new();
+    let mut previous_blank = false;
+
+    for line in decoded.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            if !previous_blank && !lines.is_empty() {
+                lines.push(String::new());
+            }
+            previous_blank = true;
+            continue;
+        }
+
+        lines.push(trimmed.to_string());
+        previous_blank = false;
+    }
+
+    while matches!(lines.last(), Some(last) if last.is_empty()) {
+        lines.pop();
+    }
+
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
+    }
 }

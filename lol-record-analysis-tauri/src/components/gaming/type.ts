@@ -1,4 +1,4 @@
-import { MatchHistory } from '../record/MatchHistory.vue'
+import type { MatchHistory } from '../record/match'
 import { OneGamePlayer, Rank, Summoner, UserTag } from '../record/type'
 
 /** 对局会话：teamOne = 我方（左），teamTwo = 敌方（右） */

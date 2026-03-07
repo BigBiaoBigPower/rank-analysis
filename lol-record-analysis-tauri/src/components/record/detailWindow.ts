@@ -33,9 +33,9 @@ export async function openMatchDetailWindow(game: Game) {
   const detailWindow = new WebviewWindow(windowLabel, {
     title: '对局详情',
     url: buildMatchDetailUrl(),
-    width: 1560,
+    width: 1300,
     height: 900,
-    minWidth: 1320,
+    minWidth: 1300,
     minHeight: 760,
     center: true,
     resizable: true,

@@ -63,6 +63,14 @@ pub struct Stats {
     pub perk_sub_style: i32,
     #[serde(rename = "perk0", default)]
     pub perk0: i32,
+    #[serde(rename = "playerAugment1", default)]
+    pub player_augment1: i32,
+    #[serde(rename = "playerAugment2", default)]
+    pub player_augment2: i32,
+    #[serde(rename = "playerAugment3", default)]
+    pub player_augment3: i32,
+    #[serde(rename = "playerAugment4", default)]
+    pub player_augment4: i32,
     pub kills: i32,
     pub deaths: i32,
     pub assists: i32,

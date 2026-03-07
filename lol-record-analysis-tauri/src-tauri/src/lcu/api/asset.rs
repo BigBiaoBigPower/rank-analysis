@@ -38,7 +38,27 @@ pub struct Perk {
     pub short_desc: String,
     #[serde(default)]
     pub long_desc: String,
+    #[serde(default)]
+    pub rarity: Option<String>,
     pub icon_path: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CherryAugment {
+    pub id: i64,
+    #[serde(rename = "nameTRA", default)]
+    pub name_tra: String,
+    #[serde(rename = "descriptionTRA", default)]
+    pub description_tra: String,
+    #[serde(default)]
+    pub tooltip: String,
+    #[serde(rename = "augmentSmallIconPath", default)]
+    pub augment_small_icon_path: String,
+    #[serde(rename = "iconLargePath", default)]
+    pub icon_large_path: String,
+    #[serde(default)]
+    pub rarity: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -61,6 +81,8 @@ pub struct AssetDetails {
     pub id: i64,
     pub name: String,
     pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rarity: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -107,6 +129,14 @@ pub async fn init() {
     let perks = lcu_get::<Vec<Perk>>(constant::api::PERKS_URI)
         .await
         .unwrap();
+    let cherry_augments =
+        match lcu_get::<Vec<CherryAugment>>(constant::api::CHERRY_AUGMENTS_URI).await {
+            Ok(augments) => augments,
+            Err(error) => {
+                log::warn!("Failed to load cherry augments: {}", error);
+                Vec::new()
+            }
+        };
     let perk_styles_only: Vec<Perk> = perk_styles
         .styles
         .into_iter()
@@ -116,7 +146,32 @@ pub async fn init() {
             tooltip: String::new(),
             short_desc: String::new(),
             long_desc: String::new(),
+            rarity: None,
             icon_path: perk_style.icon_path,
+        })
+        .collect();
+    let cherry_augment_perks: Vec<Perk> = cherry_augments
+        .into_iter()
+        .map(|augment| Perk {
+            id: augment.id,
+            name: if augment.name_tra.is_empty() {
+                format!("Augment {}", augment.id)
+            } else {
+                augment.name_tra
+            },
+            tooltip: augment.tooltip,
+            short_desc: String::new(),
+            long_desc: augment.description_tra,
+            rarity: if augment.rarity.is_empty() {
+                None
+            } else {
+                Some(augment.rarity)
+            },
+            icon_path: if augment.augment_small_icon_path.is_empty() {
+                augment.icon_large_path
+            } else {
+                augment.augment_small_icon_path
+            },
         })
         .collect();
 
@@ -126,6 +181,7 @@ pub async fn init() {
     let spell_count = spells.len();
     let perk_style_count = perk_styles_only.len();
     let perk_count = perks.len();
+    let cherry_augment_count = cherry_augment_perks.len();
 
     // 将数据存储到缓存中
     {
@@ -154,12 +210,16 @@ pub async fn init() {
         for perk in perks {
             map.insert(perk.id, perk);
         }
+        for augment in cherry_augment_perks {
+            map.insert(augment.id, augment);
+        }
     }
     log::info!("item count: {}", item_count);
     log::info!("champion count: {}", champion_count);
     log::info!("spell count: {}", spell_count);
     log::info!("perk style count: {}", perk_style_count);
     log::info!("perk count: {}", perk_count);
+    log::info!("cherry augment count: {}", cherry_augment_count);
     log::info!("Asset API caches initialized successfully");
 }
 
@@ -272,6 +332,7 @@ fn get_item_details(ids: Vec<i64>) -> Vec<AssetDetails> {
                 id,
                 name: item.name.clone(),
                 description: normalize_asset_text(&item.description).unwrap_or_default(),
+                rarity: None,
             })
         })
         .collect()
@@ -289,6 +350,7 @@ fn get_perk_details(ids: Vec<i64>) -> Vec<AssetDetails> {
                     .or_else(|| normalize_asset_text(&perk.tooltip))
                     .or_else(|| normalize_asset_text(&perk.short_desc))
                     .unwrap_or_default(),
+                rarity: perk.rarity.clone(),
             })
         })
         .collect()

@@ -247,6 +247,7 @@ onMounted(async () => {
 
 .filter-select.filter-mode {
   width: 100px;
+  margin-left: var(--space-8);
 }
 
 .filter-select.filter-champion {

@@ -4,6 +4,7 @@ export interface AssetDetail {
   id: number
   name: string
   description: string
+  rarity?: string
 }
 
 export async function getImgBase64ByIpc(typeString: string, id: number) {

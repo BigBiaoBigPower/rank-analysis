@@ -22,6 +22,10 @@ export interface ParticipantStats {
   perk0: number
   perkPrimaryStyle: number
   perkSubStyle: number
+  playerAugment1: number
+  playerAugment2: number
+  playerAugment3: number
+  playerAugment4: number
   kills: number
   deaths: number
   assists: number

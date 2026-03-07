@@ -77,7 +77,9 @@ function closeWindow() {
   gap: 12px;
   padding: 0 6px 0 10px;
   box-sizing: border-box;
-  background: linear-gradient(90deg, rgba(20, 20, 24, 0.98), rgba(13, 13, 15, 0.98));
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--semantic-win) 12%, var(--bg-surface)), var(--bg-surface)),
+    var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
   -webkit-app-region: drag;
@@ -94,7 +96,7 @@ function closeWindow() {
   padding: 0 8px;
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
   color: var(--text-primary);
   font-size: 10px;
   cursor: pointer;
@@ -105,8 +107,14 @@ function closeWindow() {
 }
 
 .match-detail-window-close:hover {
-  background: rgba(196, 92, 92, 0.18);
-  border-color: rgba(196, 92, 92, 0.35);
+  background: color-mix(in srgb, var(--semantic-loss) 18%, transparent);
+  border-color: color-mix(in srgb, var(--semantic-loss) 35%, var(--border-subtle));
+}
+
+.theme-light .match-detail-window-bar {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--semantic-win) 10%, var(--bg-surface)), var(--bg-surface)),
+    var(--bg-surface);
 }
 
 .match-detail-window-body {

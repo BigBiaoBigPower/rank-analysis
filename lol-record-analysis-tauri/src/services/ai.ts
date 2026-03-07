@@ -1,4 +1,20 @@
+import type {
+  Game,
+  MatchPlayerIdentity,
+  Participant,
+  ParticipantStats
+} from '../components/record/match'
+
 const AI_PROXY_URL = 'https://ai.nuliyangguang.top'
+const DEFAULT_SYSTEM_PROMPT =
+  '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁、专业、直接的中文回复。所有结论都必须绑定数据证据，避免空泛。'
+
+export type MatchDetailAnalysisMode = 'overview' | 'player'
+
+export interface MatchDetailAnalysisOptions {
+  mode?: MatchDetailAnalysisMode
+  participantId?: number
+}
 
 export interface AIAnalysisResult {
   success: boolean
@@ -30,6 +46,68 @@ function getChampionName(id: number): string {
   return championNameMap[id] || `英雄${id}`
 }
 
+async function requestAIContent(
+  prompt: string,
+  cacheKey: string,
+  systemPrompt: string = DEFAULT_SYSTEM_PROMPT
+): Promise<AIAnalysisResult> {
+  const cached = sessionStorage.getItem(cacheKey)
+  if (cached) {
+    return {
+      success: true,
+      content: cached
+    }
+  }
+
+  const response = await fetch(AI_PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'qwen-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+
+  const data = await response.json()
+
+  if (data.choices && data.choices[0]?.message?.content) {
+    const content = data.choices[0].message.content
+    sessionStorage.setItem(cacheKey, content)
+
+    return {
+      success: true,
+      content
+    }
+  }
+
+  if (data.error) {
+    return {
+      success: false,
+      error: data.error.message || 'AI 分析失败'
+    }
+  }
+
+  return {
+    success: false,
+    error: '未知错误'
+  }
+}
+
 /**
  * 调用 AI 分析战绩
  * @param gameData 战绩数据
@@ -44,64 +122,12 @@ export async function analyzeGameWithAI(
     await loadChampionNames()
 
     const prompt = buildAnalysisPrompt(gameData, type)
-
-    // 检查缓存
     const cacheKey = `ai_${type}_${JSON.stringify(prompt)}`
-    const cached = sessionStorage.getItem(cacheKey)
-    if (cached) {
-      return {
-        success: true,
-        content: cached
-      }
-    }
-
-    const response = await fetch(AI_PROXY_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'qwen-turbo',
-        messages: [
-          {
-            role: 'system',
-            content:
-              '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁的中文回复，不要太长。'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const data = await response.json()
-
-    if (data.choices && data.choices[0]?.message?.content) {
-      const content = data.choices[0].message.content
-      // 缓存结果
-      sessionStorage.setItem(cacheKey, content)
-
-      return {
-        success: true,
-        content
-      }
-    } else if (data.error) {
-      return {
-        success: false,
-        error: data.error.message || 'AI 分析失败'
-      }
-    } else {
-      return {
-        success: false,
-        error: '未知错误'
-      }
-    }
+    return await requestAIContent(
+      prompt,
+      cacheKey,
+      '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁的中文回复，不要太长。'
+    )
   } catch (error: any) {
     console.error('AI analysis error:', error)
     return {
@@ -475,4 +501,289 @@ ${JSON.stringify(detailedGames, null, 2)}
 
 【输出格式】
 用简洁的要点形式，每个要点用•开头。重要信息用【】标注。正面标签用✅，负面标签用⚠️。`
+}
+
+export async function analyzeMatchDetailWithAI(
+  game: Game,
+  options: MatchDetailAnalysisOptions = {}
+): Promise<AIAnalysisResult> {
+  try {
+    await loadChampionNames()
+
+    const mode = options.mode ?? 'overview'
+    const prompt =
+      mode === 'player'
+        ? buildMatchPlayerAnalysisPrompt(game, options.participantId)
+        : buildMatchOverviewAnalysisPrompt(game)
+
+    const cacheKey =
+      mode === 'player'
+        ? `match_detail_player_${game.gameId}_${options.participantId ?? 'unknown'}`
+        : `match_detail_overview_${game.gameId}`
+
+    return await requestAIContent(prompt, cacheKey)
+  } catch (error: any) {
+    console.error('Match detail AI analysis error:', error)
+    return {
+      success: false,
+      error: error.message || '网络请求失败'
+    }
+  }
+}
+
+function getParticipants(game: Game): Participant[] {
+  return game.gameDetail?.participants?.length ? game.gameDetail.participants : game.participants
+}
+
+function getParticipantIdentities(game: Game): MatchPlayerIdentity[] {
+  return game.gameDetail?.participantIdentities?.length
+    ? game.gameDetail.participantIdentities
+    : game.participantIdentities
+}
+
+function buildDisplayName(identity: MatchPlayerIdentity | undefined, fallbackId: number) {
+  if (!identity) {
+    return `玩家${fallbackId}`
+  }
+
+  return `${identity.player.gameName}#${identity.player.tagLine}`
+}
+
+function getCurrentPlayerKey(game: Game) {
+  const current = game.participantIdentities?.[0]?.player
+  if (!current) {
+    return ''
+  }
+
+  return `${current.gameName}#${current.tagLine}`
+}
+
+function getAugmentIds(stats: ParticipantStats) {
+  return [
+    stats.playerAugment1,
+    stats.playerAugment2,
+    stats.playerAugment3,
+    stats.playerAugment4
+  ].filter(augmentId => augmentId > 0)
+}
+
+function isAugmentMode(game: Game) {
+  return (
+    game.queueId === 1700 ||
+    game.queueId === 2400 ||
+    /斗魂竞技场|海克斯乱斗|海克斯大乱斗/.test(game.queueName || '')
+  )
+}
+
+function roundStat(value: number, digits: number = 1) {
+  return Number(value.toFixed(digits))
+}
+
+function totalCs(stats: ParticipantStats) {
+  return stats.totalMinionsKilled + stats.neutralMinionsKilled
+}
+
+function kda(stats: ParticipantStats) {
+  return (stats.kills + stats.assists) / Math.max(1, stats.deaths)
+}
+
+function percentOf(value: number, total: number) {
+  if (total <= 0) {
+    return 0
+  }
+
+  return roundStat((value / total) * 100)
+}
+
+function buildMatchSnapshot(game: Game) {
+  const participants = getParticipants(game)
+  const identities = getParticipantIdentities(game)
+  const currentPlayerKey = getCurrentPlayerKey(game)
+
+  const teamTotals = new Map<
+    number,
+    { damage: number; taken: number; gold: number; kills: number }
+  >()
+  for (const participant of participants) {
+    const current = teamTotals.get(participant.teamId) ?? { damage: 0, taken: 0, gold: 0, kills: 0 }
+    current.damage += participant.stats.totalDamageDealtToChampions
+    current.taken += participant.stats.totalDamageTaken
+    current.gold += participant.stats.goldEarned
+    current.kills += participant.stats.kills
+    teamTotals.set(participant.teamId, current)
+  }
+
+  const players = participants.map((participant, index) => {
+    const identity = identities[participant.participantId - 1] ?? identities[index]
+    const displayName = buildDisplayName(identity, participant.participantId)
+    const totals = teamTotals.get(participant.teamId) ?? { damage: 0, taken: 0, gold: 0, kills: 0 }
+
+    return {
+      participantId: participant.participantId,
+      teamId: participant.teamId,
+      name: displayName,
+      champion: getChampionName(participant.championId),
+      spellIds: [participant.spell1Id, participant.spell2Id],
+      isMe: displayName === currentPlayerKey,
+      win: participant.stats.win,
+      kda: roundStat(kda(participant.stats), 2),
+      kills: participant.stats.kills,
+      deaths: participant.stats.deaths,
+      assists: participant.stats.assists,
+      gold: participant.stats.goldEarned,
+      cs: totalCs(participant.stats),
+      damage: participant.stats.totalDamageDealtToChampions,
+      taken: participant.stats.totalDamageTaken,
+      heal: participant.stats.totalHeal,
+      turretDamage: participant.stats.damageDealtToTurrets,
+      damageShare: percentOf(participant.stats.totalDamageDealtToChampions, totals.damage),
+      damageTakenShare: percentOf(participant.stats.totalDamageTaken, totals.taken),
+      goldShare: percentOf(participant.stats.goldEarned, totals.gold),
+      killParticipation: percentOf(
+        participant.stats.kills + participant.stats.assists,
+        Math.max(totals.kills, 1)
+      ),
+      perks: {
+        primary: participant.stats.perk0,
+        subStyle: participant.stats.perkSubStyle
+      },
+      augments: getAugmentIds(participant.stats)
+    }
+  })
+
+  const teams = [...new Set(players.map(player => player.teamId))]
+    .map(teamId => {
+      const teamPlayers = players.filter(player => player.teamId === teamId)
+
+      return {
+        teamId,
+        result: teamPlayers[0]?.win ? '胜方' : '败方',
+        totalKills: teamPlayers.reduce((sum, player) => sum + player.kills, 0),
+        totalDeaths: teamPlayers.reduce((sum, player) => sum + player.deaths, 0),
+        totalAssists: teamPlayers.reduce((sum, player) => sum + player.assists, 0),
+        totalDamage: teamPlayers.reduce((sum, player) => sum + player.damage, 0),
+        totalTaken: teamPlayers.reduce((sum, player) => sum + player.taken, 0),
+        totalGold: teamPlayers.reduce((sum, player) => sum + player.gold, 0),
+        players: [...teamPlayers].sort((left, right) => left.participantId - right.participantId)
+      }
+    })
+    .sort(
+      (left, right) =>
+        Number(right.players[0]?.win ?? false) - Number(left.players[0]?.win ?? false)
+    )
+
+  return {
+    gameId: game.gameId,
+    queueName: game.queueName,
+    queueId: game.queueId,
+    gameMode: game.gameMode,
+    durationSeconds: game.gameDuration,
+    augmentMode: isAugmentMode(game),
+    teams,
+    players
+  }
+}
+
+function buildMatchOverviewAnalysisPrompt(game: Game) {
+  const snapshot = buildMatchSnapshot(game)
+
+  return `你是 LOL 单场复盘分析师。请只基于下面这场比赛的数据做结论，不要编造对线细节、团战时间点或装备效果。
+
+【任务目标】
+请你判断这场比赛里：
+1. 谁最尽力
+2. 谁最犯罪
+3. 谁是被对位或被局势打爆的
+4. 谁属于被队友连累
+5. 胜负的核心原因是什么
+
+【硬性要求】
+- 每个判断都必须引用至少 2 个具体数据证据，例如 KDA、伤害占比、承伤占比、经济、参团率、推塔、死亡数。
+- 不要因为输了就默认某个人犯罪，也不要因为赢了就默认某个人尽力。
+- “被连累”只给在败方里数据明显完成职责、但团队整体明显失衡的人。
+- “被爆”优先看高死亡、低经济占比、低输出占比、低参团，或者同队里明显拖后腿。
+- 允许结论为“无人明显犯罪”或“多人都尽力”。
+- 语气直接，但不要人身攻击。
+
+【对局信息】
+模式：${snapshot.queueName}
+队列ID：${snapshot.queueId}
+游戏模式：${snapshot.gameMode}
+时长：${Math.floor(snapshot.durationSeconds / 60)}分${snapshot.durationSeconds % 60}秒
+构筑类型：${snapshot.augmentMode ? '海克斯/强化局，优先看强化搭配' : '常规局，优先看符文与基础数据'}
+
+【全场数据快照】
+${JSON.stringify(snapshot, null, 2)}
+
+【输出格式】
+请严格按这个结构输出：
+
+## 总体结论
+- 先用 2-3 句话总结胜负原因。
+
+## 尽力榜
+- 只列 1-2 人。
+- 每人一行：名字 + 判定 + 证据。
+
+## 犯罪榜
+- 只列 1-2 人。
+- 如果没有明显犯罪，明确写“本局无人明显犯罪”。
+
+## 被爆点评
+- 点出 1-2 个最明显的崩点。
+
+## 被连累点评
+- 如果有人属于被连累，说明他做到了什么、却被哪些队友问题拖垮。
+
+## 关键证据
+- 用 3-5 条 bullet 收尾，每条都带数字。`
+}
+
+function buildMatchPlayerAnalysisPrompt(game: Game, participantId?: number) {
+  const snapshot = buildMatchSnapshot(game)
+  const targetPlayer =
+    snapshot.players.find(player => player.participantId === participantId) ??
+    snapshot.players.find(player => player.isMe) ??
+    snapshot.players[0]
+
+  const sameTeamPlayers = snapshot.players.filter(player => player.teamId === targetPlayer.teamId)
+  const enemyPlayers = snapshot.players.filter(player => player.teamId !== targetPlayer.teamId)
+
+  return `你是 LOL 单人复盘分析师。请围绕指定玩家，判断他这局到底属于“尽力、犯罪、被爆、被连累、正常发挥”中的哪一类。
+
+【硬性要求】
+- 必须先给出唯一主标签，只能从：尽力 / 犯罪 / 被爆 / 被连累 / 正常发挥 中选一个。
+- 所有结论必须基于数据，至少引用 3 个具体指标。
+- 要区分“自己打得差”和“队友整体拖垮”这两种情况。
+- 如果是海克斯/强化模式，请结合强化数量和构筑方向，判断是否成型。
+- 不要空泛鼓励，不要写成攻略。
+
+【对局信息】
+模式：${snapshot.queueName}
+时长：${Math.floor(snapshot.durationSeconds / 60)}分${snapshot.durationSeconds % 60}秒
+构筑类型：${snapshot.augmentMode ? '海克斯/强化局' : '常规局'}
+
+【目标玩家】
+${JSON.stringify(targetPlayer, null, 2)}
+
+【同队玩家】
+${JSON.stringify(sameTeamPlayers, null, 2)}
+
+【敌方玩家】
+${JSON.stringify(enemyPlayers, null, 2)}
+
+【输出格式】
+请严格按这个结构输出：
+
+## 玩家判定
+- 先写：名字 + 主标签。
+
+## 为什么这么判
+- 用 3-4 条 bullet 解释，必须带数字。
+
+## 他是怎么输/赢的
+- 说明是自己打出来的、被针对的、还是被队友带飞/拖累。
+
+## 一句话锐评
+- 用一句短评收尾，允许直接一点，但不要辱骂。`
 }

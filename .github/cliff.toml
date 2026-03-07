@@ -39,10 +39,10 @@ commit_parsers = [
     { message = "(?i)^style[：:]", group = "🎨 Styling" },
     { message = "(?i)^test[：:]", group = "🧪 Testing" },
     { message = "^chore\\(release\\): prepare for", skip = true },
-    { message = "(?i)^chore[：:]", group = "⚙️ Miscellaneous" },
+    { message = "(?i)^chore[：:]", skip = true },
     { body = ".*security", group = "🛡️ Security" },
-    # 添加默认匹配，捕获所有其他 commit
-    { message = ".*", group = "📦 Other Changes" },
+    # 不匹配 conventional commit 格式的跳过
+    { message = ".*", skip = true },
 ]
 protect_breaking_commits = false
 filter_commits = false  # 不过滤任何 commit

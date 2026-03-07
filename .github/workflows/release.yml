@@ -234,8 +234,16 @@ jobs:
 
           Write-Host "Current tag index: $currentIndex"
 
-          if ($currentIndex -ge 0 -and ($currentIndex + 1) -lt $tagList.Count) {
-            $prevTag = $tagList[$currentIndex + 1]
+          if ($currentIndex -ge 0) {
+            if (($currentIndex + 1) -lt $tagList.Count) {
+              $prevTag = $tagList[$currentIndex + 1]
+            }
+          } elseif ($tagList.Count -gt 0) {
+            # 当前 tag 还没打，git 里的最新 tag 就是 prevTag
+            $prevTag = $tagList[0]
+          }
+
+          if ($prevTag) {
             Write-Host "Previous tag found: $prevTag"
             echo "prev_tag=$prevTag" >> $env:GITHUB_OUTPUT
           } else {

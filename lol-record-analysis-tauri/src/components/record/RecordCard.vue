@@ -110,7 +110,9 @@
           tooltip="对英雄伤害占比"
           :color="otherColor(games.participants[0].stats?.damageDealtToChampionsRate, isDark)"
           :icon-background="isDark ? 'rgba(229, 167, 50, 0.18)' : 'rgba(229, 167, 50, 0.14)'"
-          :value="formatCompactNumber(games.participants[0].stats?.totalDamageDealtToChampions ?? 0)"
+          :value="
+            formatCompactNumber(games.participants[0].stats?.totalDamageDealtToChampions ?? 0)
+          "
           :percent="games.participants[0].stats?.damageDealtToChampionsRate ?? 0"
         />
         <StatDots

@@ -208,10 +208,7 @@
                         <template #trigger>
                           <span
                             v-if="usesAugments"
-                            :class="[
-                              'match-detail-augment-icon-shell',
-                              augmentRarityClass(perkId)
-                            ]"
+                            :class="['match-detail-augment-icon-shell', augmentRarityClass(perkId)]"
                           >
                             <img
                               :src="perkSrc(perkId)"
@@ -1273,25 +1270,29 @@ async function runCurrentAiAnalysis() {
 .match-detail-augment-prismatic {
   --augment-border: rgba(187, 125, 255, 0.92);
   --augment-background: linear-gradient(180deg, rgba(123, 82, 214, 0.9), rgba(55, 34, 110, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(79%) sepia(31%) saturate(2173%) hue-rotate(225deg) brightness(102%) contrast(101%);
+  --augment-filter: brightness(0) saturate(100%) invert(79%) sepia(31%) saturate(2173%)
+    hue-rotate(225deg) brightness(102%) contrast(101%);
 }
 
 .match-detail-augment-gold {
   --augment-border: rgba(244, 198, 88, 0.92);
   --augment-background: linear-gradient(180deg, rgba(121, 90, 18, 0.9), rgba(62, 46, 8, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(82%) sepia(51%) saturate(590%) hue-rotate(354deg) brightness(103%) contrast(104%);
+  --augment-filter: brightness(0) saturate(100%) invert(82%) sepia(51%) saturate(590%)
+    hue-rotate(354deg) brightness(103%) contrast(104%);
 }
 
 .match-detail-augment-silver {
   --augment-border: rgba(191, 205, 227, 0.88);
   --augment-background: linear-gradient(180deg, rgba(86, 103, 126, 0.9), rgba(39, 48, 61, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(93%) sepia(10%) saturate(418%) hue-rotate(176deg) brightness(103%) contrast(99%);
+  --augment-filter: brightness(0) saturate(100%) invert(93%) sepia(10%) saturate(418%)
+    hue-rotate(176deg) brightness(103%) contrast(99%);
 }
 
 .match-detail-augment-bronze {
   --augment-border: rgba(197, 132, 89, 0.9);
   --augment-background: linear-gradient(180deg, rgba(118, 67, 35, 0.9), rgba(59, 33, 17, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(76%) sepia(31%) saturate(740%) hue-rotate(338deg) brightness(98%) contrast(94%);
+  --augment-filter: brightness(0) saturate(100%) invert(76%) sepia(31%) saturate(740%)
+    hue-rotate(338deg) brightness(98%) contrast(94%);
 }
 
 .match-detail-augment-default {

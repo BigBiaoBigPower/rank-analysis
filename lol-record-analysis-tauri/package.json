@@ -11,7 +11,9 @@
     "tauri": "tauri",
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts,.vue --fix",
-    "typecheck": "vue-tsc --noEmit --composite false"
+    "typecheck": "vue-tsc --noEmit --composite false",
+    "check": "npm run format && npm run lint && npm run typecheck && npm run check:rust",
+    "check:rust": "cd src-tauri && cargo fmt --check && cargo clippy -- -Dwarnings"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.0",
@@ -41,7 +43,7 @@
     "naive-ui": "^2.37.3",
     "prettier": "^3.2.5",
     "terser": "^5.39.0",
-    "typescript": "^5.3.3",
+    "typescript": "5.3.3",
     "unplugin-auto-import": "^0.17.5",
     "unplugin-vue-components": "^0.26.0",
     "vfonts": "^0.0.3",

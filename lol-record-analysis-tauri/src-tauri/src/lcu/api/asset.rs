@@ -89,6 +89,9 @@ pub struct AssetDetails {
 #[serde(rename_all = "camelCase")]
 pub struct Spell {
     pub id: i64,
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
     pub icon_path: String,
 }
 
@@ -319,8 +322,24 @@ pub fn get_asset_details(type_string: String, ids: Vec<i64>) -> Result<Vec<Asset
     match type_string.as_str() {
         "item" => Ok(get_item_details(ids)),
         "perk" => Ok(get_perk_details(ids)),
+        "spell" => Ok(get_spell_details(ids)),
         _ => Err("Invalid type string".to_string()),
     }
+}
+
+fn get_spell_details(ids: Vec<i64>) -> Vec<AssetDetails> {
+    let cache = SPELL_CACHE.read().unwrap();
+    collect_unique_ids(ids)
+        .into_iter()
+        .filter_map(|id| {
+            cache.get(&id).map(|spell| AssetDetails {
+                id,
+                name: spell.name.clone(),
+                description: normalize_asset_text(&spell.description).unwrap_or_default(),
+                rarity: None,
+            })
+        })
+        .collect()
 }
 
 fn get_item_details(ids: Vec<i64>) -> Vec<AssetDetails> {

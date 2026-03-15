@@ -5,14 +5,8 @@
       <span class="header-title">Rank Analysis</span>
     </div>
     <div class="header-center">
-      <n-input
-        class="input-lolid header-search"
-        type="text"
-        size="small"
-        placeholder="输入召唤师"
-        v-model:value="searchValue"
-        @keyup.enter="onClinkSearch"
-      >
+      <n-input class="input-lolid header-search" type="text" size="small" placeholder="输入召唤师"
+        v-model:value="searchValue" @keyup.enter="onClinkSearch">
         <template #suffix>
           <n-button text quaternary @click="onClinkSearch" class="header-icon-btn">
             <n-icon :component="Search" />
@@ -30,12 +24,7 @@
         访问 wnzzer 的项目主页
       </n-tooltip>
       <n-divider vertical />
-      <n-switch
-        :value="themeSwitch"
-        @click="settingsStore.toggleTheme()"
-        size="small"
-        class="header-theme-switch"
-      >
+      <n-switch :value="themeSwitch" @click="settingsStore.toggleTheme()" size="small" class="header-theme-switch">
         <template #checked>
           <n-icon>
             <sunny-outline />
@@ -74,6 +63,7 @@ import {
 } from '@vicons/ionicons5'
 import { darkTheme } from 'naive-ui'
 import { Window } from '@tauri-apps/api/window'
+import { openUrl } from '@tauri-apps/plugin-opener'
 
 import router from '@renderer/router'
 import { useSettingsStore } from '@renderer/pinia/setting'
@@ -112,10 +102,10 @@ const themeSwitch = computed(() => settingsStore.theme.name !== darkTheme.name)
 
 /**
  * 打开项目 GitHub 主页
- * 在新标签页中打开项目仓库链接
+ * 使用 Tauri 的 open API 打开项目仓库链接
  */
-const openGithubLink = (): void => {
-  window.open('https://github.com/wnzzer/rank-analysis', '_blank')
+const openGithubLink = async (): Promise<void> => {
+  await openUrl('https://github.com/wnzzer/rank-analysis')
 }
 
 /**
@@ -235,6 +225,7 @@ const closeWindow = (): void => {
     color var(--transition-fast),
     transform var(--transition-fast);
 }
+
 .header-icon-btn:hover {
   color: var(--text-primary);
   background-color: rgba(255, 255, 255, 0.06);

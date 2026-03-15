@@ -260,3 +260,68 @@ fn game_matches_filters(game: &Game, filter_queue_id: i32, filter_champion_id: i
 
     queue_matches && champion_matches
 }
+
+/// 根据对局 ID 获取对局详情。
+///
+/// # 参数
+///
+/// - `game_id`: 对局 ID
+///
+/// # 返回值
+///
+/// - `Ok(Game)`: 对局详情
+/// - `Err(String)`: 查询失败时的错误信息
+///
+/// # 说明
+///
+/// 该接口通过 LCU API 获取对局详情，并补充中文队列名称。
+#[tauri::command]
+pub async fn get_game_by_id(game_id: i64) -> Result<Game, String> {
+    use crate::constant;
+    use crate::lcu::api::game_detail::GameDetail;
+
+    // 获取对局详情
+    let game_detail = GameDetail::get_game_detail_by_id(&game_id).await?;
+
+    // 构造 Game 对象，使用 game_detail 中的字段
+    let mut game = Game {
+        game_id,
+        game_detail: game_detail.clone(),
+        game_creation_date: game_detail.game_creation_date.clone(),
+        game_duration: game_detail.game_duration,
+        game_mode: game_detail.game_mode.clone(),
+        game_type: game_detail.game_type.clone(),
+        map_id: game_detail.map_id,
+        queue_id: game_detail.queue_id,
+        queue_name: String::new(),
+        platform_id: game_detail.platform_id.clone(),
+        participant_identities: game_detail.participant_identities.clone(),
+        participants: Vec::new(),
+        mvp: String::new(),
+    };
+
+    // 从 game_detail 中提取 participants
+    if !game_detail.participants.is_empty() {
+        // 转换 GameDetailParticipant 到 Participant
+        game.participants = game_detail
+            .participants
+            .iter()
+            .map(|p| crate::lcu::api::model::Participant {
+                participant_id: p.participant_id,
+                team_id: p.team_id,
+                champion_id: p.champion_id,
+                spell1_id: p.spell1_id,
+                spell2_id: p.spell2_id,
+                stats: p.stats.clone(),
+            })
+            .collect();
+    }
+
+    // 补充队列中文名称
+    game.queue_name = match constant::game::get_queue_id_to_cn(game.queue_id as u32) {
+        Some(s) => s.into(),
+        None => "未知".to_string(),
+    };
+
+    Ok(game)
+}

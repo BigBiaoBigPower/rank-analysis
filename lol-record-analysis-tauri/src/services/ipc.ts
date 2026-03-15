@@ -28,6 +28,6 @@ export async function getGameModesByIpc() {
   return await invoke<{ label: string; value: number }[]>('get_game_modes')
 }
 
-export async function getAssetDetailsByIpc(typeString: 'item' | 'perk', ids: number[]) {
+export async function getAssetDetailsByIpc(typeString: 'item' | 'perk' | 'spell', ids: number[]) {
   return await invoke<AssetDetail[]>('get_asset_details', { typeString, ids })
 }

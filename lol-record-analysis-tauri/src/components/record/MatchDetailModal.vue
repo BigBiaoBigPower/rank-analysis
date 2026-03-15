@@ -12,40 +12,23 @@
               <span class="match-detail-meta">{{ formattedDate }} · {{ durationLabel }}</span>
             </div>
             <div class="match-detail-player-row">
-              <img
-                class="match-detail-hero"
-                :src="assetPrefix + '/champion/' + mySummary.championId"
-                alt="champion"
-              />
+              <img class="match-detail-hero" :src="assetPrefix + '/champion/' + mySummary.championId" alt="champion" />
               <div class="match-detail-player-copy">
                 <div class="match-detail-player-name">{{ mySummary.displayName }}</div>
                 <div class="match-detail-player-kda">
-                  <span
-                    class="font-number"
-                    :style="{ color: killsColor(mySummary.stats.kills, isDark) }"
-                    >{{ mySummary.stats.kills }}</span
-                  >
+                  <span class="font-number" :style="{ color: killsColor(mySummary.stats.kills, isDark) }">{{
+                    mySummary.stats.kills }}</span>
                   <span>/</span>
-                  <span
-                    class="font-number"
-                    :style="{ color: deathsColor(mySummary.stats.deaths, isDark) }"
-                    >{{ mySummary.stats.deaths }}</span
-                  >
+                  <span class="font-number" :style="{ color: deathsColor(mySummary.stats.deaths, isDark) }">{{
+                    mySummary.stats.deaths }}</span>
                   <span>/</span>
-                  <span
-                    class="font-number"
-                    :style="{ color: assistsColor(mySummary.stats.assists, isDark) }"
-                    >{{ mySummary.stats.assists }}</span
-                  >
-                  <span
-                    class="font-number match-detail-kda-ratio"
-                    :style="{ color: kdaColor(kdaRatio(mySummary.stats), isDark) }"
-                  >
+                  <span class="font-number" :style="{ color: assistsColor(mySummary.stats.assists, isDark) }">{{
+                    mySummary.stats.assists }}</span>
+                  <span class="font-number match-detail-kda-ratio"
+                    :style="{ color: kdaColor(kdaRatio(mySummary.stats), isDark) }">
                     {{ kdaRatioLabel(mySummary.stats) }}
                   </span>
-                  <span class="match-detail-meta"
-                    >{{ formatCompactNumber(mySummary.stats.goldEarned) }} 金币</span
-                  >
+                  <span class="match-detail-meta">{{ formatCompactNumber(mySummary.stats.goldEarned) }} 金币</span>
                   <span class="match-detail-meta">{{ totalCs(mySummary.stats) }} 补兵</span>
                 </div>
               </div>
@@ -79,15 +62,11 @@
                 <span class="match-detail-ai-title">AI 复盘</span>
                 <span class="match-detail-ai-subtitle">整局归因 + 单人责任分析</span>
               </div>
-              <n-button
-                size="small"
-                secondary
-                type="info"
-                :loading="aiLoading"
-                @click="handleOpenOverviewAnalysis"
-              >
+              <n-button size="small" secondary type="info" :loading="aiLoading" @click="handleOpenOverviewAnalysis">
                 <template #icon>
-                  <n-icon><SparklesOutline /></n-icon>
+                  <n-icon>
+                    <SparklesOutline />
+                  </n-icon>
                 </template>
                 整局分析
               </n-button>
@@ -96,11 +75,7 @@
         </div>
 
         <div class="match-detail-body">
-          <section
-            v-for="team in teamSections"
-            :key="team.teamId"
-            class="match-detail-team-section"
-          >
+          <section v-for="team in teamSections" :key="team.teamId" class="match-detail-team-section">
             <div class="match-detail-team-header" :class="team.headerClass">
               <div class="match-detail-team-title-wrap">
                 <span class="match-detail-team-title">{{ team.title }}</span>
@@ -126,49 +101,30 @@
             </div>
 
             <div class="match-detail-team-rows">
-              <div
-                v-for="player in team.players"
-                :key="player.participantId"
-                class="match-detail-row"
-                :class="{ 'match-detail-row-me': player.isMe }"
-              >
+              <div v-for="player in team.players" :key="player.participantId" class="match-detail-row"
+                :class="{ 'match-detail-row-me': player.isMe }">
                 <div class="match-detail-player-cell">
                   <div class="match-detail-player-main">
-                    <img
-                      class="match-detail-player-avatar"
-                      :src="assetPrefix + '/champion/' + player.championId"
-                      alt="champion"
-                    />
+                    <img class="match-detail-player-avatar" :src="assetPrefix + '/champion/' + player.championId"
+                      alt="champion" />
                     <div class="match-detail-player-text">
                       <div class="match-detail-player-text-row">
                         <span class="match-detail-player-display">{{ player.displayName }}</span>
-                        <n-tag v-if="player.isMe" size="small" :bordered="false" type="info"
-                          >我</n-tag
-                        >
-                        <n-button
-                          quaternary
-                          size="tiny"
-                          class="match-detail-player-ai-trigger"
-                          :loading="
-                            aiLoading &&
-                            aiMode === 'player' &&
-                            aiTargetParticipantId === player.participantId
-                          "
-                          @click.stop="handleOpenPlayerAnalysis(player.participantId)"
-                        >
+                        <n-tag v-if="player.isMe" size="small" :bordered="false" type="info">我</n-tag>
+                        <n-button quaternary size="tiny" class="match-detail-player-ai-trigger" :loading="aiLoading &&
+                          aiMode === 'player' &&
+                          aiTargetParticipantId === player.participantId
+                          " @click.stop="handleOpenPlayerAnalysis(player.participantId)">
                           <template #icon>
-                            <n-icon><SparklesOutline /></n-icon>
+                            <n-icon>
+                              <SparklesOutline />
+                            </n-icon>
                           </template>
                           分析
                         </n-button>
                       </div>
                       <div class="match-detail-badge-row">
-                        <n-tooltip
-                          v-for="badge in player.badges"
-                          :key="badge.key"
-                          trigger="hover"
-                          placement="top"
-                        >
+                        <n-tooltip v-for="badge in player.badges" :key="badge.key" trigger="hover" placement="top">
                           <template #trigger>
                             <span class="match-detail-badge-icon" :class="badge.className">
                               <n-icon :size="10">
@@ -186,72 +142,47 @@
                 <div class="match-detail-build-cell">
                   <div class="match-detail-build-topline">
                     <div class="match-detail-spells">
-                      <img
-                        :src="spellSrc(player.spell1Id)"
-                        class="match-detail-spell-icon"
-                        alt="spell"
-                      />
-                      <img
-                        :src="spellSrc(player.spell2Id)"
-                        class="match-detail-spell-icon"
-                        alt="spell"
-                      />
+                      <n-tooltip v-for="(spellId, index) in [player.spell1Id, player.spell2Id]"
+                        :key="`${player.participantId}-spell-${spellId}-${index}`" trigger="hover" placement="top"
+                        :disabled="!assetDetail('spell', spellId)">
+                        <template #trigger>
+                          <img :src="spellSrc(spellId)" class="match-detail-spell-icon" alt="spell" />
+                        </template>
+                        <AssetTooltipContent v-if="assetDetail('spell', spellId)" :icon-src="spellSrc(spellId)"
+                          :name="assetDetail('spell', spellId)?.name ?? ''"
+                          :description="assetDetail('spell', spellId)?.description ?? ''" />
+                      </n-tooltip>
                     </div>
                     <div class="match-detail-perks">
-                      <n-tooltip
-                        v-for="(perkId, index) in displayedPerkIds(player.stats)"
-                        :key="`${player.participantId}-perk-${perkId}-${index}`"
-                        trigger="hover"
-                        placement="top"
-                        :disabled="!assetDetail('perk', perkId)"
-                      >
+                      <n-tooltip v-for="(perkId, index) in displayedPerkIds(player.stats)"
+                        :key="`${player.participantId}-perk-${perkId}-${index}`" trigger="hover" placement="top"
+                        :disabled="!assetDetail('perk', perkId)">
                         <template #trigger>
-                          <span
-                            v-if="usesAugments"
-                            :class="['match-detail-augment-icon-shell', augmentRarityClass(perkId)]"
-                          >
-                            <img
-                              :src="perkSrc(perkId)"
-                              class="match-detail-augment-icon"
-                              alt="augment"
-                            />
+                          <span v-if="usesAugments"
+                            :class="['match-detail-augment-icon-shell', augmentRarityClass(perkId)]">
+                            <img :src="perkSrc(perkId)" class="match-detail-augment-icon" alt="augment" />
                           </span>
-                          <img
-                            v-else
-                            :src="perkSrc(perkId)"
-                            :class="[
-                              'match-detail-perk-icon',
-                              { 'match-detail-perk-icon-sub': index === 1 }
-                            ]"
-                            alt="perk"
-                          />
+                          <img v-else :src="perkSrc(perkId)" :class="[
+                            'match-detail-perk-icon',
+                            { 'match-detail-perk-icon-sub': index === 1 }
+                          ]" alt="perk" />
                         </template>
-                        <AssetTooltipContent
-                          v-if="assetDetail('perk', perkId)"
-                          :icon-src="perkSrc(perkId)"
+                        <AssetTooltipContent v-if="assetDetail('perk', perkId)" :icon-src="perkSrc(perkId)"
                           :name="assetDetail('perk', perkId)?.name ?? ''"
-                          :description="assetDetail('perk', perkId)?.description ?? ''"
-                        />
+                          :description="assetDetail('perk', perkId)?.description ?? ''" />
                       </n-tooltip>
                     </div>
                   </div>
                   <div class="match-detail-items">
-                    <n-tooltip
-                      v-for="(itemId, index) in itemIds(player.stats)"
-                      :key="`${player.participantId}-${index}`"
-                      trigger="hover"
-                      placement="top"
-                      :disabled="!assetDetail('item', itemId)"
-                    >
+                    <n-tooltip v-for="(itemId, index) in itemIds(player.stats)"
+                      :key="`${player.participantId}-${index}`" trigger="hover" placement="top"
+                      :disabled="!assetDetail('item', itemId)">
                       <template #trigger>
                         <img :src="itemSrc(itemId)" class="match-detail-item-icon" alt="item" />
                       </template>
-                      <AssetTooltipContent
-                        v-if="assetDetail('item', itemId)"
-                        :icon-src="itemSrc(itemId)"
+                      <AssetTooltipContent v-if="assetDetail('item', itemId)" :icon-src="itemSrc(itemId)"
                         :name="assetDetail('item', itemId)?.name ?? ''"
-                        :description="assetDetail('item', itemId)?.description ?? ''"
-                      />
+                        :description="assetDetail('item', itemId)?.description ?? ''" />
                     </n-tooltip>
                   </div>
                 </div>
@@ -259,15 +190,15 @@
                 <div class="match-detail-value-cell font-number match-detail-kda-value-cell">
                   <span :style="{ color: killsColor(player.stats.kills, isDark) }">{{
                     player.stats.kills
-                  }}</span>
+                    }}</span>
                   <span class="match-detail-kda-separator">/</span>
                   <span :style="{ color: deathsColor(player.stats.deaths, isDark) }">{{
                     player.stats.deaths
-                  }}</span>
+                    }}</span>
                   <span class="match-detail-kda-separator">/</span>
                   <span :style="{ color: assistsColor(player.stats.assists, isDark) }">{{
                     player.stats.assists
-                  }}</span>
+                    }}</span>
                 </div>
                 <div class="match-detail-value-cell font-number">
                   {{ formatCompactNumber(player.stats.goldEarned) }}
@@ -278,39 +209,18 @@
                 </div>
 
                 <div class="match-detail-dots-cell">
-                  <StatDots
-                    :icon="FlameOutline"
-                    tooltip="对英雄伤害，占己方总和百分比"
-                    :color="otherColor(player.teamRelative.damage, isDark)"
-                    :icon-background="
-                      isDark ? 'rgba(229, 167, 50, 0.18)' : 'rgba(229, 167, 50, 0.14)'
-                    "
-                    :value="formatCompactNumber(player.stats.totalDamageDealtToChampions)"
-                    :percent="player.teamRelative.damage"
-                    compact
-                  />
-                  <StatDots
-                    :icon="ShieldOutline"
-                    tooltip="承受伤害，占己方总和百分比"
-                    :color="healColorAndTaken(player.teamRelative.taken, isDark)"
-                    :icon-background="
-                      isDark ? 'rgba(92, 163, 234, 0.2)' : 'rgba(92, 163, 234, 0.12)'
-                    "
-                    :value="formatCompactNumber(player.stats.totalDamageTaken)"
-                    :percent="player.teamRelative.taken"
-                    compact
-                  />
-                  <StatDots
-                    :icon="HeartOutline"
-                    tooltip="治疗量，占己方总和百分比"
-                    :color="healColorAndTaken(player.teamRelative.heal, isDark)"
-                    :icon-background="
-                      isDark ? 'rgba(88, 182, 109, 0.2)' : 'rgba(88, 182, 109, 0.14)'
-                    "
-                    :value="formatCompactNumber(player.stats.totalHeal)"
-                    :percent="player.teamRelative.heal"
-                    compact
-                  />
+                  <StatDots :icon="FlameOutline" tooltip="对英雄伤害，占己方总和百分比"
+                    :color="otherColor(player.teamRelative.damage, isDark)" :icon-background="isDark ? 'rgba(229, 167, 50, 0.18)' : 'rgba(229, 167, 50, 0.14)'
+                      " :value="formatCompactNumber(player.stats.totalDamageDealtToChampions)"
+                    :percent="player.teamRelative.damage" compact />
+                  <StatDots :icon="ShieldOutline" tooltip="承受伤害，占己方总和百分比"
+                    :color="healColorAndTaken(player.teamRelative.taken, isDark)" :icon-background="isDark ? 'rgba(92, 163, 234, 0.2)' : 'rgba(92, 163, 234, 0.12)'
+                      " :value="formatCompactNumber(player.stats.totalDamageTaken)" :percent="player.teamRelative.taken"
+                    compact />
+                  <StatDots :icon="HeartOutline" tooltip="治疗量，占己方总和百分比"
+                    :color="healColorAndTaken(player.teamRelative.heal, isDark)" :icon-background="isDark ? 'rgba(88, 182, 109, 0.2)' : 'rgba(88, 182, 109, 0.14)'
+                      " :value="formatCompactNumber(player.stats.totalHeal)" :percent="player.teamRelative.heal"
+                    compact />
                 </div>
               </div>
             </div>
@@ -327,12 +237,8 @@
             <n-radio-button value="player">单人复盘</n-radio-button>
           </n-radio-group>
 
-          <n-select
-            v-if="aiMode === 'player'"
-            v-model:value="aiTargetParticipantId"
-            class="match-detail-ai-player-select"
-            :options="aiPlayerOptions"
-          />
+          <n-select v-if="aiMode === 'player'" v-model:value="aiTargetParticipantId"
+            class="match-detail-ai-player-select" :options="aiPlayerOptions" />
 
           <n-button tertiary type="primary" :loading="aiLoading" @click="runCurrentAiAnalysis">
             重新分析
@@ -351,7 +257,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch, type Component } from 'vue'
+import { computed, ref, watch, onMounted, type Component } from 'vue'
 import {
   FlagOutline,
   CashOutline,
@@ -383,6 +289,8 @@ import {
   safeRelativePercent
 } from './composition'
 import { analyzeMatchDetailWithAI, type MatchDetailAnalysisMode } from '../../services/ai'
+import { invoke } from '@tauri-apps/api/core'
+import type { Summoner } from './type'
 
 interface PlayerBadge {
   key: string
@@ -413,6 +321,9 @@ const props = defineProps<{
   game: Game | null
 }>()
 
+// 当前登录用户信息
+const currentSummoner = ref<Summoner | null>(null)
+
 const settingsStore = useSettingsStore()
 const message = useMessage()
 const isDark = computed(
@@ -424,7 +335,12 @@ const md = new MarkdownIt({
   linkify: true
 })
 
+// 使用当前登录用户的 gameName#tagLine 来匹配"我"
 const currentPlayerKey = computed(() => {
+  if (currentSummoner.value) {
+    return `${currentSummoner.value.gameName}#${currentSummoner.value.tagLine}`
+  }
+  // 如果还未获取到当前用户，尝试从 game 的第一个参与者获取（兼容旧逻辑）
   const identity = props.game?.participantIdentities?.[0]?.player
   if (!identity) {
     return ''
@@ -669,6 +585,7 @@ const aiPlayerOptions = computed(() =>
 const assetIds = computed(() => {
   const itemIdsToLoad = new Set<number>()
   const perkIdsToLoad = new Set<number>()
+  const spellIdsToLoad = new Set<number>()
 
   for (const player of detailPlayers.value) {
     for (const itemId of itemIds(player.stats)) {
@@ -680,43 +597,68 @@ const assetIds = computed(() => {
     for (const perkId of displayedPerkIds(player.stats)) {
       perkIdsToLoad.add(perkId)
     }
+
+    // 收集召唤师技能ID
+    if (player.spell1Id > 0) {
+      spellIdsToLoad.add(player.spell1Id)
+    }
+    if (player.spell2Id > 0) {
+      spellIdsToLoad.add(player.spell2Id)
+    }
   }
 
   return {
     itemIds: [...itemIdsToLoad],
-    perkIds: [...perkIdsToLoad]
+    perkIds: [...perkIdsToLoad],
+    spellIds: [...spellIdsToLoad]
   }
 })
 
-watch(
-  assetIds,
-  async ({ itemIds, perkIds }) => {
-    if (!props.game) {
-      assetDetails.value = {}
-      return
-    }
+/** 延迟加载资源详情，避免阻塞渲染 */
+onMounted(async () => {
+  // 获取当前登录用户信息，用于正确匹配"我"
+  try {
+    currentSummoner.value = await invoke<Summoner>('get_my_summoner')
+  } catch (error) {
+    console.error('获取当前用户信息失败:', error)
+  }
 
-    try {
-      const [items, perks] = await Promise.all([
-        itemIds.length ? getAssetDetailsByIpc('item', itemIds) : Promise.resolve([]),
-        perkIds.length ? getAssetDetailsByIpc('perk', perkIds) : Promise.resolve([])
-      ])
+  if (!props.game) return
 
-      const nextDetails: Record<string, AssetDetail> = {}
-      for (const item of items) {
-        nextDetails[assetDetailKey('item', item.id)] = item
-      }
-      for (const perk of perks) {
-        nextDetails[assetDetailKey('perk', perk.id)] = perk
-      }
-      assetDetails.value = nextDetails
-    } catch (error) {
-      console.error('failed to load asset details', error)
-      assetDetails.value = {}
+  const { itemIds, perkIds, spellIds } = assetIds.value
+  if (itemIds.length === 0 && perkIds.length === 0 && spellIds.length === 0) return
+
+  // 使用 requestAnimationFrame 延迟到渲染完成后加载
+  requestAnimationFrame(() => {
+    loadAssetDetails(itemIds, perkIds, spellIds)
+  })
+})
+
+async function loadAssetDetails(itemIds: number[], perkIds: number[], spellIds: number[]) {
+  if (!props.game) return
+
+  try {
+    const [items, perks, spells] = await Promise.all([
+      itemIds.length ? getAssetDetailsByIpc('item', itemIds) : Promise.resolve([]),
+      perkIds.length ? getAssetDetailsByIpc('perk', perkIds) : Promise.resolve([]),
+      spellIds.length ? getAssetDetailsByIpc('spell', spellIds) : Promise.resolve([])
+    ])
+
+    const nextDetails: Record<string, AssetDetail> = {}
+    for (const item of items) {
+      nextDetails[assetDetailKey('item', item.id)] = item
     }
-  },
-  { immediate: true }
-)
+    for (const perk of perks) {
+      nextDetails[assetDetailKey('perk', perk.id)] = perk
+    }
+    for (const spell of spells) {
+      nextDetails[assetDetailKey('spell', spell.id)] = spell
+    }
+    assetDetails.value = nextDetails
+  } catch (error) {
+    console.error('failed to load asset details', error)
+  }
+}
 
 function itemIds(stats: ParticipantStats) {
   return [stats.item0, stats.item1, stats.item2, stats.item3, stats.item4, stats.item5, stats.item6]
@@ -773,11 +715,11 @@ function displayedPerkIds(stats: ParticipantStats) {
   return [stats.perk0, stats.perkSubStyle].filter(perkId => perkId > 0)
 }
 
-function assetDetailKey(type: 'item' | 'perk', id: number) {
+function assetDetailKey(type: 'item' | 'perk' | 'spell', id: number) {
   return `${type}:${id}`
 }
 
-function assetDetail(type: 'item' | 'perk', id: number) {
+function assetDetail(type: 'item' | 'perk' | 'spell', id: number) {
   if (id <= 0) {
     return null
   }
@@ -855,6 +797,7 @@ async function runCurrentAiAnalysis() {
     aiLoading.value = false
   }
 }
+
 </script>
 
 <style scoped>
@@ -1076,10 +1019,8 @@ async function runCurrentAiAnalysis() {
 .match-detail-column-header,
 .match-detail-row {
   display: grid;
-  grid-template-columns: minmax(188px, 1.22fr) minmax(214px, 1.36fr) 72px 68px 62px 68px minmax(
-      198px,
-      1.3fr
-    );
+  grid-template-columns: minmax(188px, 1.22fr) minmax(214px, 1.36fr) 72px 68px 62px 68px minmax(198px,
+      1.3fr);
   gap: 6px;
   align-items: center;
 }
@@ -1270,29 +1211,25 @@ async function runCurrentAiAnalysis() {
 .match-detail-augment-prismatic {
   --augment-border: rgba(187, 125, 255, 0.92);
   --augment-background: linear-gradient(180deg, rgba(123, 82, 214, 0.9), rgba(55, 34, 110, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(79%) sepia(31%) saturate(2173%)
-    hue-rotate(225deg) brightness(102%) contrast(101%);
+  --augment-filter: brightness(0) saturate(100%) invert(79%) sepia(31%) saturate(2173%) hue-rotate(225deg) brightness(102%) contrast(101%);
 }
 
 .match-detail-augment-gold {
   --augment-border: rgba(244, 198, 88, 0.92);
   --augment-background: linear-gradient(180deg, rgba(121, 90, 18, 0.9), rgba(62, 46, 8, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(82%) sepia(51%) saturate(590%)
-    hue-rotate(354deg) brightness(103%) contrast(104%);
+  --augment-filter: brightness(0) saturate(100%) invert(82%) sepia(51%) saturate(590%) hue-rotate(354deg) brightness(103%) contrast(104%);
 }
 
 .match-detail-augment-silver {
   --augment-border: rgba(191, 205, 227, 0.88);
   --augment-background: linear-gradient(180deg, rgba(86, 103, 126, 0.9), rgba(39, 48, 61, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(93%) sepia(10%) saturate(418%)
-    hue-rotate(176deg) brightness(103%) contrast(99%);
+  --augment-filter: brightness(0) saturate(100%) invert(93%) sepia(10%) saturate(418%) hue-rotate(176deg) brightness(103%) contrast(99%);
 }
 
 .match-detail-augment-bronze {
   --augment-border: rgba(197, 132, 89, 0.9);
   --augment-background: linear-gradient(180deg, rgba(118, 67, 35, 0.9), rgba(59, 33, 17, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(76%) sepia(31%) saturate(740%)
-    hue-rotate(338deg) brightness(98%) contrast(94%);
+  --augment-filter: brightness(0) saturate(100%) invert(76%) sepia(31%) saturate(740%) hue-rotate(338deg) brightness(98%) contrast(94%);
 }
 
 .match-detail-augment-default {

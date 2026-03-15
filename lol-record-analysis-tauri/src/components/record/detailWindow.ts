@@ -10,7 +10,7 @@ function getMatchDetailStorageKey(game: Game) {
 }
 
 function buildMatchDetailUrl() {
-  return `${window.location.origin}`
+  return `${window.location.origin}/#/MatchDetail`
 }
 
 function persistMatchDetail(storageKey: string, game: Game) {

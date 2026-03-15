@@ -2,7 +2,8 @@
   <div class="meeting-players-container">
     <n-grid :x-gap="8" :y-gap="8" cols="2">
       <n-grid-item v-for="meetGame in meetGames" :key="meetGame.gameId">
-        <div class="game-card" :class="{ 'is-win': meetGame.win, 'is-loss': !meetGame.win }">
+        <div class="game-card" :class="{ 'is-win': meetGame.win, 'is-loss': !meetGame.win }"
+          @click="openGameDetail(meetGame.gameId)">
           <!-- Left: Champion -->
           <div class="champion-section">
             <img :src="assetPrefix + '/champion/' + meetGame.championId" class="champion-img" />
@@ -39,13 +40,32 @@
 </template>
 <script setup lang="ts">
 import { OneGamePlayer } from '../record/type'
+import type { Game } from '../record/match'
 import { assetPrefix } from '../../services/http'
+import { openMatchDetailWindow } from '../record/detailWindow'
+import { invoke } from '@tauri-apps/api/core'
 
 function getFormattedDate(dateString: string) {
   const date = new Date(dateString)
   const month = (date.getMonth() + 1).toString().padStart(2, '0')
   const day = date.getDate().toString().padStart(2, '0')
   return `${month}-${day}`
+}
+
+/**
+ * 打开对局详情窗口
+ * @param gameId - 对局 ID
+ */
+async function openGameDetail(gameId: number): Promise<void> {
+  try {
+    // 通过 gameId 获取完整对局信息
+    const game = await invoke<Game>('get_game_by_id', { gameId })
+    if (game) {
+      await openMatchDetailWindow(game)
+    }
+  } catch (error) {
+    console.error('Failed to open game detail:', error)
+  }
 }
 
 defineProps<{
@@ -68,10 +88,17 @@ defineProps<{
   transition: all 0.2s ease;
   height: 48px;
   box-sizing: border-box;
+  cursor: pointer;
 }
 
 .game-card:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.game-card:active {
+  transform: translateY(0);
 }
 
 .game-card.is-win {

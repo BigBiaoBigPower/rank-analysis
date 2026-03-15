@@ -17,6 +17,21 @@ pub struct GameDetail {
     #[serde(rename = "participantIdentities")]
     pub participant_identities: Vec<ParticipantIdentity>, // Renamed to avoid conflict
     pub participants: Vec<Participant>, // Renamed to avoid conflict
+    // 以下字段从 LCU API 获取
+    #[serde(rename = "gameCreationDate", default)]
+    pub game_creation_date: String,
+    #[serde(rename = "gameDuration", default)]
+    pub game_duration: i32,
+    #[serde(rename = "gameMode", default)]
+    pub game_mode: String,
+    #[serde(rename = "gameType", default)]
+    pub game_type: String,
+    #[serde(rename = "mapId", default)]
+    pub map_id: i32,
+    #[serde(rename = "queueId", default)]
+    pub queue_id: i32,
+    #[serde(rename = "platformId", default)]
+    pub platform_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -71,19 +71,55 @@
               {{ games.participants[0].stats?.assists }}
             </span>
           </span>
-          <span class="record-card-spell-icons">
-            <img
-              :src="spellSrc(games.participants[0].spell1Id)"
-              class="record-card-icon-slot"
-              alt="spell"
-            />
-            <img
-              :src="spellSrc(games.participants[0].spell2Id)"
-              class="record-card-icon-slot"
-              alt="spell"
-            />
-          </span>
+          <!-- 海克斯模式：显示海克斯符文（最多4个） -->
+          <n-flex v-if="usesAugments" class="record-card-augments" style="gap: 2px">
+            <template v-for="(augmentId, index) in displayedAugmentIds" :key="`record-augment-${index}`">
+              <n-tooltip
+                v-if="augmentDetail(augmentId)"
+                trigger="hover"
+                placement="top"
+              >
+                <template #trigger>
+                  <span :class="['record-card-augment-shell', augmentRarityClass(augmentId)]">
+                    <img :src="augmentSrc(augmentId)" class="record-card-augment-icon" alt="augment" />
+                  </span>
+                </template>
+                <AssetTooltipContent
+                  :icon-src="augmentSrc(augmentId)"
+                  :name="augmentDetail(augmentId)?.name ?? ''"
+                  :description="augmentDetail(augmentId)?.description ?? ''"
+                />
+              </n-tooltip>
+              <span v-else :class="['record-card-augment-shell', augmentRarityClass(augmentId)]">
+                <img :src="augmentSrc(augmentId)" class="record-card-augment-icon" alt="augment" />
+              </span>
+            </template>
+            <span v-if="hiddenAugmentCount > 0" class="record-card-augments-more">
+              +{{ hiddenAugmentCount }}
+            </span>
+          </n-flex>
+          <!-- 普通模式：显示带tooltip的召唤师技能 -->
+          <n-flex v-else class="record-card-spell-icons" style="gap: 2px">
+            <n-tooltip
+              v-for="(spellId, index) in [games.participants[0].spell1Id, games.participants[0].spell2Id]"
+              :key="`record-spell-${index}`"
+              trigger="hover"
+              placement="top"
+              :disabled="!spellDetail(spellId)"
+            >
+              <template #trigger>
+                <img :src="spellSrc(spellId)" class="record-card-icon-slot" alt="spell" />
+              </template>
+              <AssetTooltipContent
+                v-if="spellDetail(spellId)"
+                :icon-src="spellSrc(spellId)"
+                :name="spellDetail(spellId)?.name ?? ''"
+                :description="spellDetail(spellId)?.description ?? ''"
+              />
+            </n-tooltip>
+          </n-flex>
         </n-flex>
+        <!-- 装备区域（所有模式都显示） -->
         <n-flex class="record-card-item-slots" style="gap: 2px">
           <n-tooltip
             v-for="(itemId, index) in itemIds(games.participants[0].stats)"
@@ -228,7 +264,7 @@
 <script lang="ts" setup>
 import { Time, CalendarNumber, FlameOutline, ShieldOutline, HeartOutline } from '@vicons/ionicons5'
 import itemNull from '../../assets/imgs/item/null.png'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatCompactNumber, healColorAndTaken, otherColor } from './composition'
 import { assetPrefix } from '../../services/http'
@@ -243,6 +279,124 @@ const settingsStore = useSettingsStore()
 const isDark = computed(
   () => settingsStore.theme?.name === 'Dark' || settingsStore.theme?.name === 'dark'
 )
+
+/** 海克斯乱斗模式 queueId: 1700(斗魂竞技场), 2400(海克斯大乱斗) */
+const augmentQueueIds = new Set([1700, 2400])
+
+/** 判断当前是否为海克斯乱斗模式 */
+const usesAugments = computed(() => {
+  return augmentQueueIds.has(props.games.queueId)
+})
+
+/** 获取所有海克斯符文ID */
+const augmentIds = computed(() => {
+  const stats = props.games.participants[0].stats
+  return [stats.playerAugment1, stats.playerAugment2, stats.playerAugment3, stats.playerAugment4].filter(
+    id => id > 0
+  )
+})
+
+/** 只显示前4个海克斯 */
+const displayedAugmentIds = computed(() => {
+  return augmentIds.value.slice(0, 4)
+})
+
+/** 隐藏的海克斯数量 */
+const hiddenAugmentCount = computed(() => {
+  return Math.max(0, augmentIds.value.length - 4)
+})
+
+/** 海克斯符文详情缓存 */
+const augmentDetails = ref<Record<number, AssetDetail>>({})
+/** 召唤师技能详情缓存 */
+const spellDetails = ref<Record<number, AssetDetail>>({})
+
+/** 延迟加载详情，避免阻塞渲染 */
+onMounted(() => {
+  // 加载海克斯详情
+  const aIds = augmentIds.value
+  if (aIds.length) {
+    requestAnimationFrame(() => {
+      loadAugmentDetails(aIds)
+    })
+  }
+
+  // 加载召唤师技能详情
+  const sIds = [props.games.participants[0].spell1Id, props.games.participants[0].spell2Id].filter(id => id > 0)
+  if (sIds.length) {
+    requestAnimationFrame(() => {
+      loadSpellDetails(sIds)
+    })
+  }
+
+  // 加载装备详情
+  const iIds = itemIds(props.games.participants[0].stats).filter(id => id > 0)
+  if (iIds.length) {
+    requestAnimationFrame(() => {
+      loadItemDetails(iIds)
+    })
+  }
+})
+
+async function loadAugmentDetails(ids: number[]) {
+  try {
+    const details = await getAssetDetailsByIpc('perk', ids)
+    const newDetails = Object.fromEntries(details.map(detail => [detail.id, detail]))
+    augmentDetails.value = newDetails
+  } catch (error) {
+    console.error('failed to load augment details', error)
+  }
+}
+
+async function loadSpellDetails(ids: number[]) {
+  try {
+    const details = await getAssetDetailsByIpc('spell', ids)
+    const newDetails = Object.fromEntries(details.map(detail => [detail.id, detail]))
+    spellDetails.value = newDetails
+  } catch (error) {
+    console.error('failed to load spell details', error)
+  }
+}
+
+async function loadItemDetails(ids: number[]) {
+  try {
+    const details = await getAssetDetailsByIpc('item', ids)
+    const newDetails = Object.fromEntries(details.map(detail => [detail.id, detail]))
+    itemDetails.value = newDetails
+  } catch (error) {
+    console.error('failed to load item details', error)
+  }
+}
+
+/** 获取海克斯符文图片地址 */
+function augmentSrc(augmentId: number) {
+  return augmentId > 0 ? `${assetPrefix}/perk/${augmentId}` : itemNull
+}
+
+/** 获取海克斯符文详情 */
+function augmentDetail(augmentId: number) {
+  if (augmentId <= 0) {
+    return null
+  }
+  return augmentDetails.value[augmentId] ?? null
+}
+
+/** 获取海克斯符文稀有度样式类 */
+function augmentRarityClass(augmentId: number) {
+  const rarity = augmentDetail(augmentId)?.rarity ?? ''
+  switch (rarity) {
+    case 'kPrismatic':
+      return 'record-card-augment-prismatic'
+    case 'kGold':
+      return 'record-card-augment-gold'
+    case 'kSilver':
+      return 'record-card-augment-silver'
+    case 'kBronze':
+      return 'record-card-augment-bronze'
+    default:
+      return 'record-card-augment-default'
+  }
+}
 
 /** 亮/暗两套主题色，默认情况也保证可见 */
 const themeColors = computed(() => {
@@ -334,35 +488,18 @@ function itemIds(stats: ParticipantStats) {
 
 const itemDetails = ref<Record<number, AssetDetail>>({})
 
-const itemIdsToLoad = computed(() => {
-  const stats = props.games.participants[0].stats
-  return [...new Set(itemIds(stats).filter(itemId => itemId > 0))]
-})
-
-watch(
-  itemIdsToLoad,
-  async ids => {
-    if (!ids.length) {
-      itemDetails.value = {}
-      return
-    }
-
-    try {
-      const details = await getAssetDetailsByIpc('item', ids)
-      itemDetails.value = Object.fromEntries(details.map(detail => [detail.id, detail]))
-    } catch (error) {
-      console.error('failed to load record card item details', error)
-      itemDetails.value = {}
-    }
-  },
-  { immediate: true }
-)
-
 function assetDetail(itemId: number) {
   if (itemId <= 0) {
     return null
   }
   return itemDetails.value[itemId] ?? null
+}
+
+function spellDetail(spellId: number) {
+  if (spellId <= 0) {
+    return null
+  }
+  return spellDetails.value[spellId] ?? null
 }
 
 function openDetail() {
@@ -504,6 +641,101 @@ function openDetail() {
 .record-card-spell-icons {
   display: inline-flex;
   gap: 2px;
+}
+
+/* 海克斯符文相关样式 - 与战绩详情页颜色保持一致 */
+.record-card-augments {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.record-card-augment-shell {
+  --augment-border: rgba(172, 185, 201, 0.42);
+  --augment-background: linear-gradient(180deg, rgba(56, 65, 78, 0.92), rgba(27, 32, 41, 0.96));
+  --augment-filter: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--augment-border);
+  background: var(--augment-background);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.record-card-augment-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: var(--augment-filter);
+}
+
+/* 海克斯符文稀有度颜色 */
+.record-card-augment-shell {
+  --augment-border: rgba(172, 185, 201, 0.42);
+  --augment-background: linear-gradient(180deg, rgba(56, 65, 78, 0.92), rgba(27, 32, 41, 0.96));
+  --augment-filter: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--augment-border);
+  background: var(--augment-background);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.record-card-augment-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: var(--augment-filter);
+}
+
+.record-card-augment-prismatic {
+  --augment-border: rgba(187, 125, 255, 0.92);
+  --augment-background: linear-gradient(180deg, rgba(123, 82, 214, 0.9), rgba(55, 34, 110, 0.98));
+  --augment-filter: brightness(0) saturate(100%) invert(79%) sepia(31%) saturate(2173%) hue-rotate(225deg) brightness(102%) contrast(101%);
+}
+
+.record-card-augment-gold {
+  --augment-border: rgba(244, 198, 88, 0.92);
+  --augment-background: linear-gradient(180deg, rgba(121, 90, 18, 0.9), rgba(62, 46, 8, 0.98));
+  --augment-filter: brightness(0) saturate(100%) invert(82%) sepia(51%) saturate(590%) hue-rotate(354deg) brightness(103%) contrast(104%);
+}
+
+.record-card-augment-silver {
+  --augment-border: rgba(191, 205, 227, 0.88);
+  --augment-background: linear-gradient(180deg, rgba(86, 103, 126, 0.9), rgba(39, 48, 61, 0.98));
+  --augment-filter: brightness(0) saturate(100%) invert(93%) sepia(10%) saturate(418%) hue-rotate(176deg) brightness(103%) contrast(99%);
+}
+
+.record-card-augment-bronze {
+  --augment-border: rgba(197, 132, 89, 0.9);
+  --augment-background: linear-gradient(180deg, rgba(118, 67, 35, 0.9), rgba(59, 33, 17, 0.98));
+  --augment-filter: brightness(0) saturate(100%) invert(76%) sepia(31%) saturate(740%) hue-rotate(338deg) brightness(98%) contrast(94%);
+}
+
+.record-card-augment-default {
+  --augment-border: rgba(172, 185, 201, 0.42);
+  --augment-background: linear-gradient(180deg, rgba(56, 65, 78, 0.92), rgba(27, 32, 41, 0.96));
+  --augment-filter: none;
+}
+
+/* 更多海克斯提示 */
+.record-card-augments-more {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0 4px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
 }
 
 /* 对局玩家头像网格精致化 */

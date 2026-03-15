@@ -271,9 +271,7 @@ describe('ipc', () => {
      * 测试：当调用 perk 类型时应使用正确的参数
      */
     it('should call invoke with correct parameters for perk type', async () => {
-      const mockDetails: AssetDetail[] = [
-        { id: 8005, name: '强攻', description: '攻击英雄三次' }
-      ]
+      const mockDetails: AssetDetail[] = [{ id: 8005, name: '强攻', description: '攻击英雄三次' }]
       vi.mocked(invoke).mockResolvedValue(mockDetails)
 
       const result = await getAssetDetailsByIpc('perk', [8005])
@@ -325,7 +323,9 @@ describe('ipc', () => {
       const error = new Error('Failed to fetch asset details')
       vi.mocked(invoke).mockRejectedValue(error)
 
-      await expect(getAssetDetailsByIpc('item', [1])).rejects.toThrow('Failed to fetch asset details')
+      await expect(getAssetDetailsByIpc('item', [1])).rejects.toThrow(
+        'Failed to fetch asset details'
+      )
     })
   })
 })

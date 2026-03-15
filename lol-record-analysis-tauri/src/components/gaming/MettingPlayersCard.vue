@@ -2,8 +2,11 @@
   <div class="meeting-players-container">
     <n-grid :x-gap="8" :y-gap="8" cols="2">
       <n-grid-item v-for="meetGame in meetGames" :key="meetGame.gameId">
-        <div class="game-card" :class="{ 'is-win': meetGame.win, 'is-loss': !meetGame.win }"
-          @click="openGameDetail(meetGame.gameId)">
+        <div
+          class="game-card"
+          :class="{ 'is-win': meetGame.win, 'is-loss': !meetGame.win }"
+          @click="openGameDetail(meetGame.gameId)"
+        >
           <!-- Left: Champion -->
           <div class="champion-section">
             <img :src="assetPrefix + '/champion/' + meetGame.championId" class="champion-img" />

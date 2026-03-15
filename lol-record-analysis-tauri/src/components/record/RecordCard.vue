@@ -1,16 +1,26 @@
 <template>
-  <n-card content-style="padding: 8px 12px;" class="win-class"
-    :class="{ 'defeat-class': !games.participants[0].stats.win }" :style="cardStyle" role="button" tabindex="0"
-    @click="openDetail" @keyup.enter="openDetail">
+  <n-card
+    content-style="padding: 8px 12px;"
+    class="win-class"
+    :class="{ 'defeat-class': !games.participants[0].stats.win }"
+    :style="cardStyle"
+    role="button"
+    tabindex="0"
+    @click="openDetail"
+    @keyup.enter="openDetail"
+  >
     <n-flex align="center" justify="space-between">
       <n-flex vertical style="gap: 1px">
-        <span class="font-number" :style="{
-          fontWeight: '700',
-          fontSize: '14px',
-          color: games.participants[0].stats.win ? themeColors.win : themeColors.loss,
-          marginLeft: '4px',
-          marginTop: '2px'
-        }">
+        <span
+          class="font-number"
+          :style="{
+            fontWeight: '700',
+            fontSize: '14px',
+            color: games.participants[0].stats.win ? themeColors.win : themeColors.loss,
+            marginLeft: '4px',
+            marginTop: '2px'
+          }"
+        >
           {{ games.participants[0].stats.win ? '胜利' : '失败' }}
           <n-divider style="margin: 1px 0; line-height: 1px" />
         </span>
@@ -21,10 +31,16 @@
         </span>
       </n-flex>
       <div style="height: 42px; position: relative">
-        <img style="height: 42px" :src="`${assetPrefix}/champion/${games.participants[0].championId}`" />
+        <img
+          style="height: 42px"
+          :src="`${assetPrefix}/champion/${games.participants[0].championId}`"
+        />
         <template v-if="!!games.mvp">
-          <div style="position: absolute; left: 0; bottom: 0" class="mvp-box"
-            :style="{ backgroundColor: games.mvp == 'MVP' ? '#FFD700' : '#FFFFFF' }">
+          <div
+            style="position: absolute; left: 0; bottom: 0"
+            class="mvp-box"
+            :style="{ backgroundColor: games.mvp == 'MVP' ? '#FFD700' : '#FFFFFF' }"
+          >
             {{ games.mvp == 'MVP' ? 'MVP' : 'SVP' }}
           </div>
         </template>
@@ -33,7 +49,7 @@
       <n-flex vertical>
         <span class="font-number" style="font-size: 14px; font-weight: 700">{{
           games.queueName
-          }}</span>
+        }}</span>
         <span class="record-card-meta">
           <n-icon style="margin-right: 1px">
             <CalendarNumber />
@@ -59,15 +75,26 @@
           </span>
           <!-- 海克斯模式：显示海克斯符文（最多4个） -->
           <n-flex v-if="usesAugments" class="record-card-augments" style="gap: 2px">
-            <template v-for="(augmentId, _idx) in displayedAugmentIds" :key="`record-augment-${_idx}`">
+            <template
+              v-for="(augmentId, _idx) in displayedAugmentIds"
+              :key="`record-augment-${_idx}`"
+            >
               <n-tooltip trigger="hover" placement="top" :disabled="!augmentDetail(augmentId)">
                 <template #trigger>
                   <span :class="['record-card-augment-shell', augmentRarityClass(augmentId)]">
-                    <img :src="augmentSrc(augmentId)" class="record-card-augment-icon" alt="augment" />
+                    <img
+                      :src="augmentSrc(augmentId)"
+                      class="record-card-augment-icon"
+                      alt="augment"
+                    />
                   </span>
                 </template>
-                <AssetTooltipContent v-if="augmentDetail(augmentId)" :icon-src="augmentSrc(augmentId)"
-                  :name="augmentDetail(augmentId)!.name" :description="augmentDetail(augmentId)!.description" />
+                <AssetTooltipContent
+                  v-if="augmentDetail(augmentId)"
+                  :icon-src="augmentSrc(augmentId)"
+                  :name="augmentDetail(augmentId)!.name"
+                  :description="augmentDetail(augmentId)!.description"
+                />
               </n-tooltip>
             </template>
             <span v-if="hiddenAugmentCount > 0" class="record-card-augments-more">
@@ -76,43 +103,76 @@
           </n-flex>
           <!-- 普通模式：显示带tooltip的召唤师技能 -->
           <n-flex v-else class="record-card-spell-icons" style="gap: 2px">
-            <n-tooltip v-for="(spellId, index) in [games.participants[0].spell1Id, games.participants[0].spell2Id]"
-              :key="`record-spell-${index}`" trigger="hover" placement="top" :disabled="!spellDetail(spellId)">
+            <n-tooltip
+              v-for="(spellId, index) in [
+                games.participants[0].spell1Id,
+                games.participants[0].spell2Id
+              ]"
+              :key="`record-spell-${index}`"
+              trigger="hover"
+              placement="top"
+              :disabled="!spellDetail(spellId)"
+            >
               <template #trigger>
                 <img :src="spellSrc(spellId)" class="record-card-icon-slot" alt="spell" />
               </template>
-              <AssetTooltipContent v-if="spellDetail(spellId)" :icon-src="spellSrc(spellId)"
-                :name="spellDetail(spellId)?.name ?? ''" :description="spellDetail(spellId)?.description ?? ''" />
+              <AssetTooltipContent
+                v-if="spellDetail(spellId)"
+                :icon-src="spellSrc(spellId)"
+                :name="spellDetail(spellId)?.name ?? ''"
+                :description="spellDetail(spellId)?.description ?? ''"
+              />
             </n-tooltip>
           </n-flex>
         </n-flex>
         <!-- 装备区域（所有模式都显示） -->
         <n-flex class="record-card-item-slots" style="gap: 2px">
-          <n-tooltip v-for="(itemId, index) in itemIds(games.participants[0].stats)" :key="`record-item-${index}`"
-            trigger="hover" placement="top" :disabled="!assetDetail(itemId)">
+          <n-tooltip
+            v-for="(itemId, index) in itemIds(games.participants[0].stats)"
+            :key="`record-item-${index}`"
+            trigger="hover"
+            placement="top"
+            :disabled="!assetDetail(itemId)"
+          >
             <template #trigger>
               <img :src="itemSrc(itemId)" class="record-card-icon-slot" alt="item" />
             </template>
-            <AssetTooltipContent v-if="assetDetail(itemId)" :icon-src="itemSrc(itemId)"
-              :name="assetDetail(itemId)?.name ?? ''" :description="assetDetail(itemId)?.description ?? ''" />
+            <AssetTooltipContent
+              v-if="assetDetail(itemId)"
+              :icon-src="itemSrc(itemId)"
+              :name="assetDetail(itemId)?.name ?? ''"
+              :description="assetDetail(itemId)?.description ?? ''"
+            />
           </n-tooltip>
         </n-flex>
       </n-flex>
       <div class="record-card-stats-block">
-        <StatDots :icon="FlameOutline" tooltip="对英雄伤害占比"
+        <StatDots
+          :icon="FlameOutline"
+          tooltip="对英雄伤害占比"
           :color="otherColor(games.participants[0].stats?.damageDealtToChampionsRate, isDark)"
-          :icon-background="isDark ? 'rgba(229, 167, 50, 0.18)' : 'rgba(229, 167, 50, 0.14)'" :value="formatCompactNumber(games.participants[0].stats?.totalDamageDealtToChampions ?? 0)
-            " :percent="games.participants[0].stats?.damageDealtToChampionsRate ?? 0" />
-        <StatDots :icon="ShieldOutline" tooltip="承伤占比"
+          :icon-background="isDark ? 'rgba(229, 167, 50, 0.18)' : 'rgba(229, 167, 50, 0.14)'"
+          :value="
+            formatCompactNumber(games.participants[0].stats?.totalDamageDealtToChampions ?? 0)
+          "
+          :percent="games.participants[0].stats?.damageDealtToChampionsRate ?? 0"
+        />
+        <StatDots
+          :icon="ShieldOutline"
+          tooltip="承伤占比"
           :color="healColorAndTaken(games.participants[0].stats?.damageTakenRate, isDark)"
           :icon-background="isDark ? 'rgba(92, 163, 234, 0.2)' : 'rgba(92, 163, 234, 0.12)'"
           :value="formatCompactNumber(games.participants[0].stats?.totalDamageTaken ?? 0)"
-          :percent="games.participants[0].stats?.damageTakenRate ?? 0" />
-        <StatDots :icon="HeartOutline" tooltip="治疗占比"
+          :percent="games.participants[0].stats?.damageTakenRate ?? 0"
+        />
+        <StatDots
+          :icon="HeartOutline"
+          tooltip="治疗占比"
           :color="healColorAndTaken(games.participants[0].stats?.healRate, isDark)"
           :icon-background="isDark ? 'rgba(88, 182, 109, 0.2)' : 'rgba(88, 182, 109, 0.14)'"
           :value="formatCompactNumber(games.participants[0].stats?.totalHeal ?? 0)"
-          :percent="games.participants[0].stats?.healRate ?? 0" />
+          :percent="games.participants[0].stats?.healRate ?? 0"
+        />
       </div>
       <n-flex vertical justify="space-between" style="gap: 0px">
         <n-tag :bordered="false" size="small">
@@ -120,30 +180,40 @@
             <n-flex>
               <n-popover v-for="i in 5" :key="i" trigger="hover">
                 <template #trigger>
-                  <n-button text @click.stop @click="
-                    toNameRecord(
-                      games.gameDetail.participantIdentities[i - 1].player.gameName +
-                      '#' +
-                      games.gameDetail.participantIdentities[i - 1].player.tagLine
-                    )
-                    ">
-                    <n-avatar :bordered="true" :src="assetPrefix +
-                      '/champion/' +
-                      games.gameDetail.participants[i - 1]?.championId
-                      " :fallback-src="itemNull" :style="{
+                  <n-button
+                    text
+                    @click.stop
+                    @click="
+                      toNameRecord(
+                        games.gameDetail.participantIdentities[i - 1].player.gameName +
+                          '#' +
+                          games.gameDetail.participantIdentities[i - 1].player.tagLine
+                      )
+                    "
+                  >
+                    <n-avatar
+                      :bordered="true"
+                      :src="
+                        assetPrefix +
+                        '/champion/' +
+                        games.gameDetail.participants[i - 1]?.championId
+                      "
+                      :fallback-src="itemNull"
+                      :style="{
                         borderColor: getIsMeBorderedColor(
                           games.gameDetail.participantIdentities[i - 1]?.player.gameName +
-                          '#' +
-                          games.gameDetail.participantIdentities[i - 1]?.player.tagLine
+                            '#' +
+                            games.gameDetail.participantIdentities[i - 1]?.player.tagLine
                         )
-                      }" />
+                      }"
+                    />
                   </n-button>
                 </template>
                 <span>{{
                   games.gameDetail.participantIdentities[i - 1].player.gameName +
                   '#' +
                   games.gameDetail.participantIdentities[i - 1].player.tagLine
-                  }}</span>
+                }}</span>
               </n-popover>
             </n-flex>
           </template>
@@ -154,30 +224,40 @@
             <n-flex>
               <n-popover v-for="i in 5" :key="i + 5" trigger="hover">
                 <template #trigger>
-                  <n-button text @click.stop @click="
-                    toNameRecord(
-                      games.gameDetail.participantIdentities[i + 4]?.player.gameName +
-                      '#' +
-                      games.gameDetail.participantIdentities[i + 4]?.player.tagLine
-                    )
-                    ">
-                    <n-avatar :bordered="true" :src="assetPrefix +
-                      '/champion/' +
-                      games.gameDetail.participants[i + 4]?.championId
-                      " :fallback-src="itemNull" :style="{
-                        borderColor: getIsMeBorderedColor(
-                          games.gameDetail.participantIdentities[i + 4]?.player.gameName +
+                  <n-button
+                    text
+                    @click.stop
+                    @click="
+                      toNameRecord(
+                        games.gameDetail.participantIdentities[i + 4]?.player.gameName +
                           '#' +
                           games.gameDetail.participantIdentities[i + 4]?.player.tagLine
+                      )
+                    "
+                  >
+                    <n-avatar
+                      :bordered="true"
+                      :src="
+                        assetPrefix +
+                        '/champion/' +
+                        games.gameDetail.participants[i + 4]?.championId
+                      "
+                      :fallback-src="itemNull"
+                      :style="{
+                        borderColor: getIsMeBorderedColor(
+                          games.gameDetail.participantIdentities[i + 4]?.player.gameName +
+                            '#' +
+                            games.gameDetail.participantIdentities[i + 4]?.player.tagLine
                         )
-                      }" />
+                      }"
+                    />
                   </n-button>
                 </template>
                 <span>{{
                   games.gameDetail.participantIdentities[i + 4]?.player.gameName +
                   '#' +
                   games.gameDetail.participantIdentities[i + 4]?.player.tagLine
-                  }}</span>
+                }}</span>
               </n-popover>
             </n-flex>
           </template>
@@ -217,9 +297,12 @@ const usesAugments = computed(() => {
 /** 获取所有海克斯符文ID */
 const augmentIds = computed(() => {
   const stats = props.games.participants[0].stats
-  return [stats.playerAugment1, stats.playerAugment2, stats.playerAugment3, stats.playerAugment4].filter(
-    id => id > 0
-  )
+  return [
+    stats.playerAugment1,
+    stats.playerAugment2,
+    stats.playerAugment3,
+    stats.playerAugment4
+  ].filter(id => id > 0)
 })
 
 /** 只显示前4个海克斯 */
@@ -248,7 +331,9 @@ onMounted(() => {
   }
 
   // 加载召唤师技能详情
-  const sIds = [props.games.participants[0].spell1Id, props.games.participants[0].spell2Id].filter(id => id > 0)
+  const sIds = [props.games.participants[0].spell1Id, props.games.participants[0].spell2Id].filter(
+    id => id > 0
+  )
   if (sIds.length) {
     requestAnimationFrame(() => {
       loadSpellDetails(sIds)
@@ -386,8 +471,8 @@ function getIsMeBorderedColor(name: string) {
   if (
     name ==
     props.games.participantIdentities[0].player.gameName +
-    '#' +
-    props.games.participantIdentities[0].player.tagLine
+      '#' +
+      props.games.participantIdentities[0].player.tagLine
   ) {
     return isDark.value ? '#63e2b7' : '#0d9488'
   }
@@ -626,25 +711,29 @@ function openDetail() {
 .record-card-augment-prismatic {
   --augment-border: rgba(187, 125, 255, 0.92);
   --augment-background: linear-gradient(180deg, rgba(123, 82, 214, 0.9), rgba(55, 34, 110, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(79%) sepia(31%) saturate(2173%) hue-rotate(225deg) brightness(102%) contrast(101%);
+  --augment-filter: brightness(0) saturate(100%) invert(79%) sepia(31%) saturate(2173%)
+    hue-rotate(225deg) brightness(102%) contrast(101%);
 }
 
 .record-card-augment-gold {
   --augment-border: rgba(244, 198, 88, 0.92);
   --augment-background: linear-gradient(180deg, rgba(121, 90, 18, 0.9), rgba(62, 46, 8, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(82%) sepia(51%) saturate(590%) hue-rotate(354deg) brightness(103%) contrast(104%);
+  --augment-filter: brightness(0) saturate(100%) invert(82%) sepia(51%) saturate(590%)
+    hue-rotate(354deg) brightness(103%) contrast(104%);
 }
 
 .record-card-augment-silver {
   --augment-border: rgba(191, 205, 227, 0.88);
   --augment-background: linear-gradient(180deg, rgba(86, 103, 126, 0.9), rgba(39, 48, 61, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(93%) sepia(10%) saturate(418%) hue-rotate(176deg) brightness(103%) contrast(99%);
+  --augment-filter: brightness(0) saturate(100%) invert(93%) sepia(10%) saturate(418%)
+    hue-rotate(176deg) brightness(103%) contrast(99%);
 }
 
 .record-card-augment-bronze {
   --augment-border: rgba(197, 132, 89, 0.9);
   --augment-background: linear-gradient(180deg, rgba(118, 67, 35, 0.9), rgba(59, 33, 17, 0.98));
-  --augment-filter: brightness(0) saturate(100%) invert(76%) sepia(31%) saturate(740%) hue-rotate(338deg) brightness(98%) contrast(94%);
+  --augment-filter: brightness(0) saturate(100%) invert(76%) sepia(31%) saturate(740%)
+    hue-rotate(338deg) brightness(98%) contrast(94%);
 }
 
 .record-card-augment-default {

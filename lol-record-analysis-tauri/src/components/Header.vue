@@ -5,8 +5,14 @@
       <span class="header-title">Rank Analysis</span>
     </div>
     <div class="header-center">
-      <n-input class="input-lolid header-search" type="text" size="small" placeholder="输入召唤师"
-        v-model:value="searchValue" @keyup.enter="onClinkSearch">
+      <n-input
+        class="input-lolid header-search"
+        type="text"
+        size="small"
+        placeholder="输入召唤师"
+        v-model:value="searchValue"
+        @keyup.enter="onClinkSearch"
+      >
         <template #suffix>
           <n-button text quaternary @click="onClinkSearch" class="header-icon-btn">
             <n-icon :component="Search" />
@@ -24,7 +30,12 @@
         访问 wnzzer 的项目主页
       </n-tooltip>
       <n-divider vertical />
-      <n-switch :value="themeSwitch" @click="settingsStore.toggleTheme()" size="small" class="header-theme-switch">
+      <n-switch
+        :value="themeSwitch"
+        @click="settingsStore.toggleTheme()"
+        size="small"
+        class="header-theme-switch"
+      >
         <template #checked>
           <n-icon>
             <sunny-outline />

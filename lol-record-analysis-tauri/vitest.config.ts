@@ -17,19 +17,19 @@ export default defineConfig({
         '**/*.spec.ts',
         '**/types/**',
         '**/assets/**',
-        '**/dist/**',
+        '**/dist/**'
       ],
       thresholds: {
         lines: 80,
         functions: 80,
         branches: 80,
-        statements: 80,
-      },
-    },
+        statements: 80
+      }
+    }
   },
   resolve: {
     alias: {
-      '@renderer': resolve(__dirname, './src'),
-    },
-  },
+      '@renderer': resolve(__dirname, './src')
+    }
+  }
 })

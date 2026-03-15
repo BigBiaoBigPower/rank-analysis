@@ -79,9 +79,11 @@ function closeWindow() {
   padding: 0 6px 0 10px;
   box-sizing: border-box;
   background:
-    linear-gradient(90deg,
+    linear-gradient(
+      90deg,
       color-mix(in srgb, var(--semantic-win) 12%, var(--bg-surface)),
-      var(--bg-surface)),
+      var(--bg-surface)
+    ),
     var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
@@ -116,9 +118,11 @@ function closeWindow() {
 
 .theme-light .match-detail-window-bar {
   background:
-    linear-gradient(90deg,
+    linear-gradient(
+      90deg,
       color-mix(in srgb, var(--semantic-win) 10%, var(--bg-surface)),
-      var(--bg-surface)),
+      var(--bg-surface)
+    ),
     var(--bg-surface);
 }
 

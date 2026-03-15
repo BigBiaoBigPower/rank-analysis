@@ -69,12 +69,12 @@ async function requestAIContent(
   }
 
   // 使用流式 API 获取完整内容
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     let fullContent = ''
     requestAIContentStream(
       prompt,
       {
-        onChunk: (chunk) => {
+        onChunk: chunk => {
           fullContent += chunk
         },
         onDone: () => {
@@ -84,7 +84,7 @@ async function requestAIContent(
             content: fullContent
           })
         },
-        onError: (error) => {
+        onError: error => {
           resolve({
             success: false,
             error
@@ -204,7 +204,8 @@ export async function analyzeGameWithAIStream(
     await loadChampionNames()
 
     const prompt = buildAnalysisPrompt(gameData, type)
-    const systemPrompt = '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁的中文回复，不要太长。'
+    const systemPrompt =
+      '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁的中文回复，不要太长。'
 
     await requestAIContentStream(prompt, callbacks, systemPrompt)
   } catch (error: any) {
@@ -222,7 +223,7 @@ export async function analyzeGameWithAI(
   gameData: any,
   type: 'team' | 'player' = 'team'
 ): Promise<AIAnalysisResult> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     let fullContent = ''
     analyzeGameWithAIStream(gameData, type, {
       onChunk: (chunk: string) => {
@@ -325,10 +326,10 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
         winRate:
           p.userTag?.recentData?.selectWins && p.userTag?.recentData?.selectLosses
             ? Math.round(
-              (p.userTag.recentData.selectWins /
-                (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
-              100
-            )
+                (p.userTag.recentData.selectWins /
+                  (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
+                  100
+              )
             : 0,
         kda: p.userTag?.recentData?.kda?.toFixed(2) || '0.00',
         kills: p.userTag?.recentData?.kills?.toFixed(1) || '0.0',
@@ -425,10 +426,10 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
         winRate:
           p.userTag?.recentData?.selectWins && p.userTag?.recentData?.selectLosses
             ? Math.round(
-              (p.userTag.recentData.selectWins /
-                (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
-              100
-            )
+                (p.userTag.recentData.selectWins /
+                  (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
+                  100
+              )
             : 0,
         kda: p.userTag?.recentData?.kda?.toFixed(2) || '0.00',
         groupRate: p.userTag?.recentData?.groupRate || 0,
@@ -562,14 +563,15 @@ function buildPlayerAnalysisPrompt(player: any): string {
 
 【近期统计】
 模式：${player.userTag?.recentData?.selectModeCn || '未知'}
-胜率：${player.userTag?.recentData?.selectWins || 0}胜${player.userTag?.recentData?.selectLosses || 0}负 (${player.userTag?.recentData?.selectWins && player.userTag?.recentData?.selectLosses
+胜率：${player.userTag?.recentData?.selectWins || 0}胜${player.userTag?.recentData?.selectLosses || 0}负 (${
+    player.userTag?.recentData?.selectWins && player.userTag?.recentData?.selectLosses
       ? Math.round(
-        (player.userTag.recentData.selectWins /
-          (player.userTag.recentData.selectWins + player.userTag.recentData.selectLosses)) *
-        100
-      )
+          (player.userTag.recentData.selectWins /
+            (player.userTag.recentData.selectWins + player.userTag.recentData.selectLosses)) *
+            100
+        )
       : 0
-    }%)
+  }%)
 KDA：${player.userTag?.recentData?.kda?.toFixed(2) || 0}
 场均：${player.userTag?.recentData?.kills?.toFixed(1) || 0}/${player.userTag?.recentData?.deaths?.toFixed(1) || 0}/${player.userTag?.recentData?.assists?.toFixed(1) || 0}
 参团率：${player.userTag?.recentData?.groupRate || 0}%

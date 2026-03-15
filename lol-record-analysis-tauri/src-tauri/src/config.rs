@@ -425,7 +425,7 @@ mod tests {
         let null_val = Value::Null;
         let string_val = Value::String("test".to_string());
         let int_val = Value::Integer(42);
-        let float_val = Value::Float(3.14);
+        let float_val = Value::Float(std::f64::consts::PI);
         let bool_val = Value::Boolean(true);
 
         // 验证可以创建各种变体
@@ -445,12 +445,12 @@ mod tests {
         }
 
         match float_val {
-            Value::Float(f) => assert_eq!(f, 3.14),
+            Value::Float(f) => assert_eq!(f, std::f64::consts::PI),
             _ => panic!("Expected Float"),
         }
 
         match bool_val {
-            Value::Boolean(b) => assert_eq!(b, true),
+            Value::Boolean(b) => assert!(b),
             _ => panic!("Expected Boolean"),
         }
     }

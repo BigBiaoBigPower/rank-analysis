@@ -163,7 +163,18 @@ describe('useAssetUrl', () => {
      */
     it('should return correct URL for all tier types', () => {
       const { getTierUrl } = useAssetUrl()
-      const tiers = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER']
+      const tiers = [
+        'IRON',
+        'BRONZE',
+        'SILVER',
+        'GOLD',
+        'PLATINUM',
+        'EMERALD',
+        'DIAMOND',
+        'MASTER',
+        'GRANDMASTER',
+        'CHALLENGER'
+      ]
 
       tiers.forEach(tier => {
         const result = getTierUrl(tier)

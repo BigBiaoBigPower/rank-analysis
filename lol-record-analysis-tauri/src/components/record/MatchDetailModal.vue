@@ -288,7 +288,7 @@ import {
   otherColor,
   safeRelativePercent
 } from './composition'
-import { analyzeMatchDetailWithAI, type MatchDetailAnalysisMode } from '../../services/ai'
+import { analyzeMatchDetailWithAIStream, type MatchDetailAnalysisMode } from '../../services/ai'
 import { invoke } from '@tauri-apps/api/core'
 import type { Summoner } from './type'
 
@@ -623,6 +623,21 @@ onMounted(async () => {
     console.error('获取当前用户信息失败:', error)
   }
 
+  // 初始加载
+  loadAssetsIfNeeded()
+})
+
+/** 监听game变化，重新加载资源 */
+watch(
+  () => props.game?.gameId,
+  () => {
+    loadAssetsIfNeeded()
+  },
+  { immediate: false }
+)
+
+/** 加载资源（如果game存在） */
+function loadAssetsIfNeeded() {
   if (!props.game) return
 
   const { itemIds, perkIds, spellIds } = assetIds.value
@@ -632,7 +647,7 @@ onMounted(async () => {
   requestAnimationFrame(() => {
     loadAssetDetails(itemIds, perkIds, spellIds)
   })
-})
+}
 
 async function loadAssetDetails(itemIds: number[], perkIds: number[], spellIds: number[]) {
   if (!props.game) return
@@ -748,6 +763,8 @@ watch(
     aiMode.value = 'overview'
     aiTargetParticipantId.value =
       mySummary.value?.participantId ?? detailPlayers.value[0]?.participantId ?? null
+    // 当game变化时重新加载资源
+    loadAssetsIfNeeded()
   },
   { immediate: true }
 )
@@ -778,22 +795,31 @@ async function runCurrentAiAnalysis() {
   }
 
   aiLoading.value = true
+  aiResult.value = ''
+
   try {
-    const result = await analyzeMatchDetailWithAI(props.game, {
-      mode: aiMode.value,
-      participantId:
-        aiMode.value === 'player' ? (aiTargetParticipantId.value ?? undefined) : undefined
-    })
-
-    if (result.success && result.content) {
-      aiResult.value = result.content
-      return
-    }
-
-    message.error(result.error || 'AI 分析失败')
+    await analyzeMatchDetailWithAIStream(
+      props.game,
+      {
+        onChunk: (chunk: string) => {
+          aiResult.value += chunk
+        },
+        onDone: () => {
+          aiLoading.value = false
+        },
+        onError: (error: string) => {
+          message.error('AI 分析出错: ' + error)
+          aiLoading.value = false
+        }
+      },
+      {
+        mode: aiMode.value,
+        participantId:
+          aiMode.value === 'player' ? (aiTargetParticipantId.value ?? undefined) : undefined
+      }
+    )
   } catch (error: any) {
     message.error('AI 分析出错: ' + (error.message || '未知错误'))
-  } finally {
     aiLoading.value = false
   }
 }

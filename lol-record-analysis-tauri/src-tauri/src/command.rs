@@ -37,6 +37,7 @@
 //! - `Ok(T)`: 操作成功，返回数据
 //! - `Err(String)`: 操作失败，返回错误信息字符串
 
+pub mod ai;
 pub mod asset;
 pub mod config;
 pub mod fandom;

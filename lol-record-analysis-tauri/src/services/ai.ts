@@ -5,9 +5,11 @@ import type {
   ParticipantStats
 } from '../components/record/match'
 
-const AI_PROXY_URL = 'https://ai.nuliyangguang.top'
 const DEFAULT_SYSTEM_PROMPT =
   '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁、专业、直接的中文回复。所有结论都必须绑定数据证据，避免空泛。'
+
+// Cloudflare Worker 代理地址
+const AI_WORKER_URL = 'https://ai.nuliyangguang.top'
 
 export type MatchDetailAnalysisMode = 'overview' | 'player'
 
@@ -20,6 +22,13 @@ export interface AIAnalysisResult {
   success: boolean
   content?: string
   error?: string
+}
+
+// 流式输出回调
+export interface StreamCallbacks {
+  onChunk: (chunk: string) => void
+  onDone: () => void
+  onError: (error: string) => void
 }
 
 // 英雄 ID 到中文名映射（动态加载）
@@ -59,57 +68,152 @@ async function requestAIContent(
     }
   }
 
-  const response = await fetch(AI_PROXY_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'qwen-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
+  // 使用流式 API 获取完整内容
+  return new Promise((resolve) => {
+    let fullContent = ''
+    requestAIContentStream(
+      prompt,
+      {
+        onChunk: (chunk) => {
+          fullContent += chunk
         },
-        {
-          role: 'user',
-          content: prompt
+        onDone: () => {
+          sessionStorage.setItem(cacheKey, fullContent)
+          resolve({
+            success: true,
+            content: fullContent
+          })
+        },
+        onError: (error) => {
+          resolve({
+            success: false,
+            error
+          })
         }
-      ]
-    })
+      },
+      systemPrompt
+    )
   })
+}
 
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`)
-  }
+/**
+ * 流式请求 AI 内容（通过 Cloudflare Worker 代理）
+ */
+export async function requestAIContentStream(
+  prompt: string,
+  callbacks: StreamCallbacks,
+  systemPrompt: string = DEFAULT_SYSTEM_PROMPT
+): Promise<void> {
+  try {
+    const response = await fetch(AI_WORKER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        stream: true
+      })
+    })
 
-  const data = await response.json()
-
-  if (data.choices && data.choices[0]?.message?.content) {
-    const content = data.choices[0].message.content
-    sessionStorage.setItem(cacheKey, content)
-
-    return {
-      success: true,
-      content
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`HTTP error! status: ${response.status}, ${errorText}`)
     }
-  }
 
-  if (data.error) {
-    return {
-      success: false,
-      error: data.error.message || 'AI 分析失败'
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('无法读取响应流')
     }
-  }
 
-  return {
-    success: false,
-    error: '未知错误'
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed === 'data: [DONE]') continue
+
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const jsonStr = trimmed.slice(6)
+            if (jsonStr === '[DONE]') continue
+
+            const data = JSON.parse(jsonStr)
+            // 百炼格式: choices[0].delta.content
+            const content = data.choices?.[0]?.delta?.content || ''
+            if (content) {
+              callbacks.onChunk(content)
+            }
+          } catch (e) {
+            // 忽略解析错误
+          }
+        }
+      }
+    }
+
+    // 处理剩余缓冲区
+    const remainingBuffer = buffer.trim()
+    if (remainingBuffer && remainingBuffer !== 'data: [DONE]') {
+      if (remainingBuffer.startsWith('data: ')) {
+        try {
+          const jsonStr = remainingBuffer.slice(6)
+          if (jsonStr !== '[DONE]') {
+            const data = JSON.parse(jsonStr)
+            const content = data.choices?.[0]?.delta?.content || ''
+            if (content) {
+              callbacks.onChunk(content)
+            }
+          }
+        } catch (e) {
+          // 忽略解析错误
+        }
+      }
+    }
+
+    callbacks.onDone()
+  } catch (error: any) {
+    callbacks.onError(error.message || '流式请求失败')
   }
 }
 
 /**
- * 调用 AI 分析战绩
+ * 调用 AI 分析战绩（流式）
+ * @param gameData 战绩数据
+ * @param type 分析类型：'team' | 'player'
+ * @param callbacks 流式回调
+ */
+export async function analyzeGameWithAIStream(
+  gameData: any,
+  type: 'team' | 'player' = 'team',
+  callbacks: StreamCallbacks
+): Promise<void> {
+  try {
+    // 先加载英雄名称映射
+    await loadChampionNames()
+
+    const prompt = buildAnalysisPrompt(gameData, type)
+    const systemPrompt = '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁的中文回复，不要太长。'
+
+    await requestAIContentStream(prompt, callbacks, systemPrompt)
+  } catch (error: any) {
+    console.error('AI analysis error:', error)
+    callbacks.onError(error.message || '网络请求失败')
+  }
+}
+
+/**
+ * 调用 AI 分析战绩（非流式，兼容旧代码）
  * @param gameData 战绩数据
  * @param type 分析类型：'team' | 'player'
  */
@@ -117,24 +221,26 @@ export async function analyzeGameWithAI(
   gameData: any,
   type: 'team' | 'player' = 'team'
 ): Promise<AIAnalysisResult> {
-  try {
-    // 先加载英雄名称映射
-    await loadChampionNames()
-
-    const prompt = buildAnalysisPrompt(gameData, type)
-    const cacheKey = `ai_${type}_${JSON.stringify(prompt)}`
-    return await requestAIContent(
-      prompt,
-      cacheKey,
-      '你是一个LOL游戏分析师，擅长分析玩家战绩和给出游戏建议。请用简洁的中文回复，不要太长。'
-    )
-  } catch (error: any) {
-    console.error('AI analysis error:', error)
-    return {
-      success: false,
-      error: error.message || '网络请求失败'
-    }
-  }
+  return new Promise((resolve) => {
+    let fullContent = ''
+    analyzeGameWithAIStream(gameData, type, {
+      onChunk: (chunk: string) => {
+        fullContent += chunk
+      },
+      onDone: () => {
+        resolve({
+          success: true,
+          content: fullContent
+        })
+      },
+      onError: (error: string) => {
+        resolve({
+          success: false,
+          error
+        })
+      }
+    })
+  })
 }
 
 /**
@@ -218,10 +324,10 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
         winRate:
           p.userTag?.recentData?.selectWins && p.userTag?.recentData?.selectLosses
             ? Math.round(
-                (p.userTag.recentData.selectWins /
-                  (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
-                  100
-              )
+              (p.userTag.recentData.selectWins /
+                (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
+              100
+            )
             : 0,
         kda: p.userTag?.recentData?.kda?.toFixed(2) || '0.00',
         kills: p.userTag?.recentData?.kills?.toFixed(1) || '0.0',
@@ -318,10 +424,10 @@ function buildTeamAnalysisPrompt(sessionData: any): string {
         winRate:
           p.userTag?.recentData?.selectWins && p.userTag?.recentData?.selectLosses
             ? Math.round(
-                (p.userTag.recentData.selectWins /
-                  (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
-                  100
-              )
+              (p.userTag.recentData.selectWins /
+                (p.userTag.recentData.selectWins + p.userTag.recentData.selectLosses)) *
+              100
+            )
             : 0,
         kda: p.userTag?.recentData?.kda?.toFixed(2) || '0.00',
         groupRate: p.userTag?.recentData?.groupRate || 0,
@@ -455,15 +561,14 @@ function buildPlayerAnalysisPrompt(player: any): string {
 
 【近期统计】
 模式：${player.userTag?.recentData?.selectModeCn || '未知'}
-胜率：${player.userTag?.recentData?.selectWins || 0}胜${player.userTag?.recentData?.selectLosses || 0}负 (${
-    player.userTag?.recentData?.selectWins && player.userTag?.recentData?.selectLosses
+胜率：${player.userTag?.recentData?.selectWins || 0}胜${player.userTag?.recentData?.selectLosses || 0}负 (${player.userTag?.recentData?.selectWins && player.userTag?.recentData?.selectLosses
       ? Math.round(
-          (player.userTag.recentData.selectWins /
-            (player.userTag.recentData.selectWins + player.userTag.recentData.selectLosses)) *
-            100
-        )
+        (player.userTag.recentData.selectWins /
+          (player.userTag.recentData.selectWins + player.userTag.recentData.selectLosses)) *
+        100
+      )
       : 0
-  }%)
+    }%)
 KDA：${player.userTag?.recentData?.kda?.toFixed(2) || 0}
 场均：${player.userTag?.recentData?.kills?.toFixed(1) || 0}/${player.userTag?.recentData?.deaths?.toFixed(1) || 0}/${player.userTag?.recentData?.assists?.toFixed(1) || 0}
 参团率：${player.userTag?.recentData?.groupRate || 0}%
@@ -528,6 +633,30 @@ export async function analyzeMatchDetailWithAI(
       success: false,
       error: error.message || '网络请求失败'
     }
+  }
+}
+
+/**
+ * 流式分析对局详情
+ */
+export async function analyzeMatchDetailWithAIStream(
+  game: Game,
+  callbacks: StreamCallbacks,
+  options: MatchDetailAnalysisOptions = {}
+): Promise<void> {
+  try {
+    await loadChampionNames()
+
+    const mode = options.mode ?? 'overview'
+    const prompt =
+      mode === 'player'
+        ? buildMatchPlayerAnalysisPrompt(game, options.participantId)
+        : buildMatchOverviewAnalysisPrompt(game)
+
+    await requestAIContentStream(prompt, callbacks)
+  } catch (error: any) {
+    console.error('Match detail AI stream analysis error:', error)
+    callbacks.onError(error.message || '网络请求失败')
   }
 }
 

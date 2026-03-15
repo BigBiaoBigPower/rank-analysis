@@ -119,7 +119,7 @@ import LoadingComponent from '../components/LoadingComponent.vue'
 import PlayerCard from '../components/gaming/PlayerCard.vue'
 import { SessionData, SessionSummoner, PreGroupMarkers } from '../components/gaming/type'
 import { divisionOrPoint } from '../components/composition'
-import { analyzeGameWithAI } from '../services/ai'
+import { analyzeGameWithAIStream, type StreamCallbacks } from '../services/ai'
 import MarkdownIt from 'markdown-it'
 /**
  * Returns the image path for the given rank tier.
@@ -265,22 +265,31 @@ const handleUpdateConfig = async (value: number | null) => {
   }
 }
 
-// AI 分析处理
+// AI 分析处理（流式）
 const handleAIAnalysis = async () => {
   if (aiLoading.value) return
 
   aiLoading.value = true
+  aiResult.value = ''
+  showAIResult.value = true
+
   try {
-    const result = await analyzeGameWithAI(sessionData, 'team')
-    if (result.success && result.content) {
-      aiResult.value = result.content
-      showAIResult.value = true
-    } else {
-      message.error(result.error || 'AI 分析失败')
+    const callbacks: StreamCallbacks = {
+      onChunk: (chunk: string) => {
+        aiResult.value += chunk
+      },
+      onDone: () => {
+        aiLoading.value = false
+      },
+      onError: (error: string) => {
+        message.error('AI 分析出错: ' + error)
+        aiLoading.value = false
+      }
     }
+
+    await analyzeGameWithAIStream(sessionData, 'team', callbacks)
   } catch (e: any) {
     message.error('AI 分析出错: ' + (e.message || '未知错误'))
-  } finally {
     aiLoading.value = false
   }
 }

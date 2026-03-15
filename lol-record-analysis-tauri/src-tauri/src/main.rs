@@ -88,6 +88,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         })
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
+            command::ai::stream_ai_analysis,
             command::asset::get_asset_details,
             command::config::put_config,
             command::config::get_config,

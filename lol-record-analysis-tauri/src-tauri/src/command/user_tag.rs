@@ -1,6 +1,42 @@
 //! # UserTag 命令模块
 //!
 //! 用户标签与近期数据：基于对局记录计算 KDA、胜率、好友/纠纷率等，生成标签与「遇到过的人」等。
+//!
+//! ## 主要功能
+//!
+//! - **标签生成**: 根据配置规则生成用户标签（连胜、连败、娱乐玩家等）
+//! - **近期数据**: 计算 KDA、胜率、经济、伤害等统计数据
+//! - **好友/纠纷检测**: 分析历史对局找出经常同队或对战的人
+//! - **同场玩家**: 记录近期同场的所有玩家信息
+//!
+//! ## 数据结构
+//!
+//! ```text
+//! UserTag
+//!     ├── recent_data: RecentData
+//!     │       ├── kda, kills, deaths, assists
+//!     │       ├── select_wins, select_losses
+//!     │       ├── group_rate, gold_rate, damage_rate
+//!     │       ├── friend_and_dispute: FriendAndDispute
+//!     │       └── one_game_players_map
+//!     └── tag: Vec<RankTag>
+//! ```
+//!
+//! ## 标签配置系统
+//!
+//! 标签不再硬编码，而是通过 `user_tag_config` 模块动态配置。
+//! 配置支持复杂的条件树（AND/OR/NOT）和历史数据筛选。
+//!
+//! ## 使用示例
+//!
+//! ```rust,ignore
+//! // 获取用户标签
+//! let user_tag = get_user_tag_by_puuid(&puuid, 420).await?; // 420 = 单双排
+//!
+//! // 访问数据
+//! println!("KDA: {}", user_tag.recent_data.kda);
+//! println!("标签: {:?}", user_tag.tag);
+//! ```
 
 use crate::command::user_tag_config;
 use crate::constant::game::QUEUE_ID_TO_CN;
@@ -10,87 +46,221 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// 单场对局中的一名玩家摘要（用于「遇到过的人」等展示）。
+///
+/// # 字段说明
+///
+/// - `index`: 在战绩列表中的索引
+/// - `game_id`: 对局 ID
+/// - `puuid`: 玩家 PUUID
+/// - `game_created_at`: 对局创建时间
+/// - `is_my_team`: 是否与我同队
+/// - `game_name`: 游戏名称
+/// - `tag_line`: 标签线（#后面的数字）
+/// - `champion_id`: 英雄 ID
+/// - `champion_key`: 英雄键名
+/// - `kills`, `deaths`, `assists`: KDA 数据
+/// - `win`: 是否胜利
+/// - `queue_id_cn`: 队列模式中文名
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OneGamePlayer {
+    /// 在战绩列表中的索引
     pub index: i32,
+    /// 对局 ID
     pub game_id: i64,
+    /// 玩家 PUUID
     pub puuid: String,
+    /// 对局创建时间
     pub game_created_at: String,
+    /// 是否与我同队
     pub is_my_team: bool,
+    /// 游戏名称
     pub game_name: String,
+    /// 标签线
     pub tag_line: String,
+    /// 英雄 ID
     pub champion_id: i32,
+    /// 英雄键名
     pub champion_key: String,
+    /// 击杀数
     pub kills: i32,
+    /// 死亡数
     pub deaths: i32,
+    /// 助攻数
     pub assists: i32,
+    /// 是否胜利
     pub win: bool,
+    /// 队列模式中文名
     pub queue_id_cn: String,
 }
 
+/// 单个玩家的汇总信息（用于好友/纠纷列表）。
+///
+/// # 字段说明
+///
+/// - `win_rate`: 与该玩家的胜率
+/// - `wins`: 胜利场次
+/// - `losses`: 失败场次
+/// - `summoner`: 召唤师信息
+/// - `one_game_player`: 详细对局记录
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OneGamePlayerSummoner {
+    /// 与该玩家的胜率
     pub win_rate: i32,
+    /// 胜利场次
     pub wins: i32,
+    /// 失败场次
     pub losses: i32,
+    /// 召唤师信息
     #[serde(rename = "Summoner")]
     pub summoner: Summoner,
+    /// 详细对局记录
     #[serde(rename = "OneGamePlayer")]
     pub one_game_player: Vec<OneGamePlayer>,
 }
 
+/// 用户标签。
+///
+/// # 字段说明
+///
+/// - `good`: 是否为正面标签
+/// - `tag_name`: 标签名称
+/// - `tag_desc`: 标签描述
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RankTag {
+    /// 是否为正面标签
     pub good: bool,
+    /// 标签名称
     pub tag_name: String,
+    /// 标签描述
     pub tag_desc: String,
 }
 
+/// 好友与纠纷统计。
+///
+/// # 字段说明
+///
+/// - `friends_rate`: 与好友组队的胜率
+/// - `dispute_rate`: 与"冤家"对战的胜率
+/// - `friends_summoner`: 好友列表
+/// - `dispute_summoner`: "冤家"列表
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FriendAndDispute {
+    /// 与好友组队的胜率
     pub friends_rate: i32,
+    /// 与"冤家"对战的胜率
     pub dispute_rate: i32,
+    /// 好友列表
     pub friends_summoner: Vec<OneGamePlayerSummoner>,
+    /// "冤家"列表
     pub dispute_summoner: Vec<OneGamePlayerSummoner>,
 }
 
+/// 近期数据统计。
+///
+/// 基于最近对局计算的各种统计数据。
+///
+/// # 字段说明
+///
+/// - `kda`, `kills`, `deaths`, `assists`: KDA 相关数据
+/// - `select_mode`: 筛选的队列模式
+/// - `select_mode_cn`: 队列模式中文名
+/// - `select_wins`, `select_losses`: 胜负场次
+/// - `group_rate`: 参团率
+/// - `average_gold`, `gold_rate`: 平均经济和金币占比
+/// - `average_damage_dealt_to_champions`, `damage_dealt_to_champions_rate`: 平均伤害和伤害占比
+/// - `friend_and_dispute`: 好友/纠纷统计
+/// - `one_game_players_map`: 同场玩家映射（用于预组队检测）
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RecentData {
+    /// KDA 值
     pub kda: f64,
+    /// 平均击杀
     pub kills: f64,
+    /// 平均死亡
     pub deaths: f64,
+    /// 平均助攻
     pub assists: f64,
+    /// 筛选的队列模式
     pub select_mode: i32,
+    /// 队列模式中文名
     pub select_mode_cn: String,
+    /// 胜利场次
     pub select_wins: i32,
+    /// 失败场次
     pub select_losses: i32,
+    /// 参团率
     pub group_rate: i32,
+    /// 平均经济
     pub average_gold: i32,
+    /// 金币占比
     pub gold_rate: i32,
+    /// 平均对英雄伤害
     pub average_damage_dealt_to_champions: i32,
+    /// 伤害占比
     pub damage_dealt_to_champions_rate: i32,
+    /// 好友/纠纷统计
     pub friend_and_dispute: FriendAndDispute,
+    /// 同场玩家映射
     pub one_game_players_map: Option<HashMap<String, Vec<OneGamePlayer>>>,
 }
 
+/// 用户标签完整数据结构。
+///
+/// # 字段说明
+///
+/// - `recent_data`: 近期统计数据
+/// - `tag`: 标签列表
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UserTag {
+    /// 近期统计数据
     pub recent_data: RecentData,
+    /// 标签列表
     pub tag: Vec<RankTag>,
 }
 
+/// 根据召唤师名称获取用户标签。
+///
+/// # 参数
+///
+/// - `name`: 召唤师名称
+/// - `mode`: 队列模式 ID（用于筛选统计范围）
+///
+/// # 返回值
+///
+/// - `Ok(UserTag)`: 用户标签数据
+/// - `Err(String)`: 查询失败时的错误信息
 #[tauri::command]
 pub async fn get_user_tag_by_name(name: &str, mode: i32) -> Result<UserTag, String> {
     let summoner = Summoner::get_summoner_by_name(name).await?;
     get_user_tag_by_puuid(&summoner.puuid, mode).await
 }
 
+/// 根据 PUUID 获取用户标签（核心函数）。
+///
+/// # 参数
+///
+/// - `puuid`: 召唤师 PUUID
+/// - `mode`: 队列模式 ID（0 表示所有模式）
+///
+/// # 返回值
+///
+/// - `Ok(UserTag)`: 用户标签数据
+/// - `Err(String)`: 查询失败时的错误信息
+///
+/// # 处理流程
+///
+/// 1. 获取最近 20 场对局记录
+/// 2. 补充对局详情
+/// 3. 根据配置生成标签
+/// 4. 提取同场玩家信息
+/// 5. 计算 KDA、胜率等统计数据
+/// 6. 计算好友/纠纷统计
 #[tauri::command]
 pub async fn get_user_tag_by_puuid(puuid: &str, mode: i32) -> Result<UserTag, String> {
     log::info!("get_user_tag_by_puuid: {}, mode: {}", puuid, mode);
@@ -189,6 +359,17 @@ pub async fn get_user_tag_by_puuid(puuid: &str, mode: i32) -> Result<UserTag, St
     Ok(user_tag)
 }
 
+/// 从战绩中提取同场玩家信息。
+///
+/// 遍历所有对局，收集每个同场玩家的信息。
+///
+/// # 参数
+///
+/// - `match_history`: 对局记录
+///
+/// # 返回值
+///
+/// PUUID 到对局记录列表的映射
 fn get_one_game_players(match_history: &MatchHistory) -> HashMap<String, Vec<OneGamePlayer>> {
     let mut one_game_player_map = HashMap::new();
 
@@ -238,6 +419,20 @@ fn get_one_game_players(match_history: &MatchHistory) -> HashMap<String, Vec<One
     one_game_player_map
 }
 
+/// 计算好友和纠纷统计。
+///
+/// 分析同场玩家数据，找出经常同队（好友）或经常对战（冤家）的玩家。
+///
+/// # 参数
+///
+/// - `one_game_players_map`: 同场玩家映射
+/// - `recent_data`: 输出数据结构
+/// - `my_puuid`: 当前用户的 PUUID（用于排除自己）
+///
+/// # 判定逻辑
+///
+/// - 好友：同场次数 >= 3 且所有场次都是同队
+/// - 冤家：同场次数 >= 3 且所有场次都是对战
 async fn count_friend_and_dispute(
     one_game_players_map: &HashMap<String, Vec<OneGamePlayer>>,
     recent_data: &mut RecentData,
@@ -359,6 +554,16 @@ async fn count_friend_and_dispute(
         dispute_summoner.into_iter().take(5).collect();
 }
 
+/// 计算经济、参团率和伤害数据。
+///
+/// # 参数
+///
+/// - `match_history`: 对局记录
+/// - `mode`: 队列模式筛选（0 表示所有模式）
+///
+/// # 返回值
+///
+/// (参团率, 平均经济, 金币占比, 平均伤害, 伤害占比)
 fn count_gold_and_group_and_damage_dealt_to_champions(
     match_history: &MatchHistory,
     mode: i32,
@@ -411,6 +616,16 @@ fn count_gold_and_group_and_damage_dealt_to_champions(
     )
 }
 
+/// 计算胜负场次。
+///
+/// # 参数
+///
+/// - `match_history`: 对局记录
+/// - `mode`: 队列模式筛选（0 表示所有模式）
+///
+/// # 返回值
+///
+/// (胜场, 负场)
 fn count_win_and_loss(match_history: &MatchHistory, mode: i32) -> (i32, i32) {
     let mut select_wins = 0;
     let mut select_losses = 0;
@@ -428,6 +643,16 @@ fn count_win_and_loss(match_history: &MatchHistory, mode: i32) -> (i32, i32) {
     (select_wins, select_losses)
 }
 
+/// 计算 KDA 数据。
+///
+/// # 参数
+///
+/// - `match_history`: 对局记录
+/// - `mode`: 队列模式筛选（0 表示所有模式）
+///
+/// # 返回值
+///
+/// (平均击杀, 平均死亡, 平均助攻)
 fn count_kda(match_history: &MatchHistory, mode: i32) -> (f64, f64, f64) {
     let mut count = 1;
     let mut kills = 0;

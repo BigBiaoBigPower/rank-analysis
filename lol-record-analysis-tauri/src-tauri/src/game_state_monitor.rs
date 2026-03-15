@@ -1,3 +1,50 @@
+//! # 游戏状态监听模块
+//!
+//! 实时监控英雄联盟客户端（LCU）的连接状态和游戏阶段变化。
+//!
+//! ## 主要功能
+//!
+//! - **连接检测**: 检测 LCU 客户端是否运行
+//! - **阶段监听**: 监控游戏阶段变化（大厅、选人、对局中、结算等）
+//! - **事件推送**: 通过 Tauri 事件向前端推送状态变更
+//! - **WebSocket 启动**: 在 LCU 连接时自动启动 WebSocket 监听
+//!
+//! ## 监听机制
+//!
+//! ```text
+//! ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+//! │   Tokio Ticker  │────▶│  check_and_emit  │────▶│  Tauri Event    │
+//! │  (每 2 秒轮询)   │     │  (状态检测逻辑)   │     │  game-state-changed
+//! └─────────────────┘     └──────────────────┘     └─────────────────┘
+//!                                │
+//!                                ▼
+//!                         ┌──────────────────┐
+//!                         │  WebSocket 启动   │
+//!                         │  (首次连接时)     │
+//!                         └──────────────────┘
+//! ```
+//!
+//! ## 事件类型
+//!
+//! - `game-state-changed`: 游戏状态变更事件，包含连接状态、当前阶段和召唤师信息
+//!
+//! ## 使用示例
+//!
+//! ```rust,ignore
+//! // 在 Tauri 应用启动时初始化监听器
+//! pub fn run() {
+//!     tauri::Builder::default()
+//!         .setup(|app| {
+//!             let handle = app.handle().clone();
+//!             tauri::async_runtime::spawn(async move {
+//!                 start_game_state_monitor(handle).await;
+//!             });
+//!             Ok(())
+//!         })
+//!         ...
+//! }
+//! ```
+
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Emitter};
@@ -7,23 +54,61 @@ use tokio::time::interval;
 use crate::lcu::api::phase::get_phase;
 use crate::lcu::api::summoner::Summoner;
 
+/// 游戏状态事件数据结构。
+///
+/// 通过 `game-state-changed` 事件推送给前端，包含当前 LCU 连接状态、
+/// 游戏阶段和当前登录的召唤师信息。
+///
+/// # 字段说明
+///
+/// - `connected`: LCU 客户端是否已连接
+/// - `phase`: 当前游戏阶段（如 "Lobby", "ChampSelect", "InProgress" 等），未连接时为 None
+/// - `summoner`: 当前登录的召唤师信息，未连接时为 None
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct GameStateEvent {
+    /// LCU 客户端连接状态
     pub connected: bool,
+    /// 当前游戏阶段
     pub phase: Option<String>,
+    /// 当前登录的召唤师信息
     pub summoner: Option<Summoner>,
 }
 
+/// 全局游戏状态监听器实例。
+///
+/// 使用 `OnceCell` 确保只有一个监听器实例存在，使用 `Arc<RwLock<...>>`
+/// 实现线程安全的共享状态访问。
 static GAME_STATE_MONITOR: tokio::sync::OnceCell<Arc<RwLock<GameStateMonitor>>> =
     tokio::sync::OnceCell::const_new();
 
+/// 游戏状态监听器。
+///
+/// 负责定期检测 LCU 状态变化并向前端推送事件。
+///
+/// # 字段说明
+///
+/// - `app_handle`: Tauri 应用句柄，用于发送事件
+/// - `last_state`: 上次检测到的游戏状态，用于对比变化
+/// - `last_push_time`: 上次推送事件的时间，用于实现最小推送间隔
 pub struct GameStateMonitor {
+    /// Tauri 应用句柄
     app_handle: AppHandle,
+    /// 上次状态快照
     last_state: GameStateEvent,
+    /// 上次推送时间
     last_push_time: SystemTime,
 }
 
 impl GameStateMonitor {
+    /// 创建新的游戏状态监听器实例。
+    ///
+    /// # 参数
+    ///
+    /// - `app_handle`: Tauri 应用句柄
+    ///
+    /// # 返回值
+    ///
+    /// 新创建的 `GameStateMonitor` 实例，初始状态为未连接
     fn new(app_handle: AppHandle) -> Self {
         Self {
             app_handle,
@@ -36,6 +121,20 @@ impl GameStateMonitor {
         }
     }
 
+    /// 检测当前游戏状态并发送事件。
+    ///
+    /// 核心检测逻辑：
+    /// 1. 尝试获取当前召唤师信息（判断 LCU 是否连接）
+    /// 2. 获取当前游戏阶段
+    /// 3. 对比上次状态，如有变化则发送事件
+    /// 4. 首次连接时启动 WebSocket 监听
+    /// 5. 每 10 秒至少推送一次心跳事件
+    ///
+    /// # 异步操作
+    ///
+    /// - 调用 LCU API 获取召唤师信息
+    /// - 调用 LCU API 获取游戏阶段
+    /// - 可能启动 WebSocket 监听任务
     async fn check_and_emit(&mut self) {
         // 尝试获取 summoner 信息
         let summoner_result = Summoner::get_my_summoner().await;
@@ -77,6 +176,7 @@ impl GameStateMonitor {
             });
         }
 
+        // 状态变化或超过 10 秒未推送时，发送事件
         if state_changed || diff_time > Duration::from_secs(10) {
             log::info!(
                 "Game state changed: connected={}, phase={:?}",
@@ -95,7 +195,35 @@ impl GameStateMonitor {
     }
 }
 
-/// 初始化并启动游戏状态监听器
+/// 初始化并启动游戏状态监听器。
+///
+/// 这是模块的主要入口函数，应在应用程序启动时调用。
+///
+/// # 参数
+///
+/// - `app_handle`: Tauri 应用句柄
+///
+/// # 行为
+///
+/// 1. 创建全局监听器实例
+/// 2. 启动 Tokio 定时任务（每 2 秒执行一次检测）
+/// 3. 持续监控直到应用程序退出
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// pub fn run() {
+///     tauri::Builder::default()
+///         .setup(|app| {
+///             let handle = app.handle().clone();
+///             tauri::async_runtime::spawn(async move {
+///                 start_game_state_monitor(handle).await;
+///             });
+///             Ok(())
+///         })
+///         ...
+/// }
+/// ```
 pub async fn start_game_state_monitor(app_handle: AppHandle) {
     log::info!("Starting game state monitor");
 

@@ -30,27 +30,62 @@
   </div>
 </template>
 
-<script lang="ts" setup>
+<script setup lang="ts">
+import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+
 import Header from './Header.vue'
 import SideNavigation from './SideNavigation.vue'
-import MatchDetail from '../views/MatchDetail.vue'
-import { computed, onMounted } from 'vue'
-import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useRoute } from 'vue-router'
-import { useGameState } from '../composables/useGameState'
+import MatchDetail from '@renderer/views/MatchDetail.vue'
+import { useGameState } from '@renderer/composables/useGameState'
+
+/**
+ * 应用主布局框架组件
+ *
+ * 提供应用的整体布局结构，包括：
+ * - 顶部标题栏（Header）
+ * - 左侧导航栏（SideNavigation）
+ * - 主内容区域（router-view）
+ *
+ * 支持两种显示模式：
+ * 1. 完整布局模式：显示完整的侧边栏 + 头部 + 内容区
+ * 2. 独立窗口模式：用于战绩详情弹窗，仅渲染 MatchDetail 组件
+ *
+ * @example
+ * <!-- 在 App.vue 中使用 -->
+ * <Framework />
+ */
 
 const route = useRoute()
 const currentWindow = getCurrentWindow()
+
+/**
+ * 判断当前路由是否为设置页面
+ * 设置页面不使用页面切换动画，避免过渡效果干扰表单交互
+ */
 const isSettingsRoute = computed(() => route.path.startsWith('/Settings'))
+
+/**
+ * 判断当前窗口是否为独立的战绩详情窗口
+ * 独立窗口通过窗口标签前缀 'match-detail-' 识别，用于多开战绩查看
+ */
 const isStandaloneDetailWindow = computed(() => currentWindow.label.startsWith('match-detail-'))
 
-// 使用 GameState composable，其中包含了自动跳转逻辑
+/**
+ * 初始化游戏状态监听
+ * 包含自动跳转逻辑：当检测到游戏开始时自动切换到对局页面
+ */
 useGameState()
 
 onMounted(() => {
   // Framework mounted
 })
 
+/**
+ * 内容区域样式配置
+ * 使用 CSS 变量确保主题一致性
+ */
 const contentStyle = computed(() => ({
   backgroundColor: 'var(--bg-base)',
   height: '100%'

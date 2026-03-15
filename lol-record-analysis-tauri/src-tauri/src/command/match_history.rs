@@ -1,6 +1,52 @@
 //! # MatchHistory 命令模块
 //!
-//! 提供对局记录查询：按 PUUID/名称、分页、队列/英雄筛选，以及详情与中文信息增强。
+//! 提供对局记录查询功能：按 PUUID/名称查询、分页、队列/英雄筛选，以及详情与中文信息增强。
+//!
+//! ## 主要功能
+//!
+//! - **基础查询**: 按 PUUID 或名称获取对局记录
+//! - **增强查询**: 自动补充对局详情和中文名称
+//! - **筛选查询**: 支持按队列模式和英雄进行筛选
+//!
+//! ## 筛选逻辑
+//!
+//! ```text
+//! 输入: 召唤师名称 + 筛选条件
+//!     │
+//!     ▼
+//! ┌─────────────────┐
+//! │ 分页获取对局记录 │ ◄── 每次最多 50 条
+//! └─────────────────┘
+//!     │
+//!     ▼
+//! ┌─────────────────┐
+//! │ 应用筛选条件     │ ◄── queue_id + champion_id
+//! └─────────────────┘
+//!     │
+//!     ▼
+//! ┌─────────────────┐
+//! │ 收集匹配结果     │ ◄── 最多 10 条
+//! └─────────────────┘
+//!     │
+//!     ▼
+//! 输出: 筛选后的对局记录
+//! ```
+//!
+//! ## 使用示例
+//!
+//! ```rust,ignore
+//! // 基础查询
+//! let history = get_match_history_by_puuid(puuid, 0, 20).await?;
+//!
+//! // 带筛选的查询
+//! let filtered = get_filter_match_history_by_name(
+//!     "玩家名称".to_string(),
+//!     0,      // 起始索引
+//!     100,    // 搜索深度
+//!     420,    // 单双排
+//!     91,     // 英雄 ID（卡特琳娜）
+//! ).await?;
+//! ```
 
 use crate::lcu::api::{
     match_history::{Game, MatchHistory},
@@ -8,6 +54,21 @@ use crate::lcu::api::{
 };
 
 /// 根据 PUUID 与索引范围获取对局记录（原始数据，无详情增强）。
+///
+/// # 参数
+///
+/// - `puuid`: 召唤师 PUUID
+/// - `beg_index`: 起始索引（从 0 开始）
+/// - `end_index`: 结束索引（包含）
+///
+/// # 返回值
+///
+/// - `Ok(MatchHistory)`: 对局记录
+/// - `Err(String)`: 查询失败时的错误信息
+///
+/// # 注意
+///
+/// LCU API 限制最多返回 50 条记录（索引 0-49）。
 #[tauri::command]
 pub async fn get_match_history(
     puuid: String,
@@ -19,6 +80,23 @@ pub async fn get_match_history(
 }
 
 /// 根据 PUUID 获取对局记录并增强详情与中文信息。
+///
+/// # 参数
+///
+/// - `puuid`: 召唤师 PUUID
+/// - `beg_index`: 起始索引
+/// - `end_index`: 结束索引
+///
+/// # 返回值
+///
+/// - `Ok(MatchHistory)`: 增强后的对局记录
+/// - `Err(String)`: 查询失败时的错误信息
+///
+/// # 增强内容
+///
+/// 1. `enrich_game_detail()`: 补充对局详细信息
+/// 2. `enrich_info_cn()`: 添加中文名称（英雄、地图等）
+/// 3. `calculate()`: 计算统计数据
 #[tauri::command]
 pub async fn get_match_history_by_puuid(
     puuid: String,
@@ -36,6 +114,17 @@ pub async fn get_match_history_by_puuid(
 }
 
 /// 根据召唤师名称获取对局记录（内部转为 PUUID 后调用 get_match_history_by_puuid）。
+///
+/// # 参数
+///
+/// - `name`: 召唤师名称
+/// - `beg_index`: 起始索引
+/// - `end_index`: 结束索引
+///
+/// # 返回值
+///
+/// - `Ok(MatchHistory)`: 增强后的对局记录
+/// - `Err(String)`: 查询失败时的错误信息
 #[tauri::command]
 pub async fn get_match_history_by_name(
     name: String,
@@ -47,6 +136,31 @@ pub async fn get_match_history_by_name(
 }
 
 /// 根据名称、索引范围及队列/英雄筛选获取对局记录（最多返回指定条数）。
+///
+/// # 参数
+///
+/// - `name`: 召唤师名称
+/// - `beg_index`: 起始索引
+/// - `end_index`: 搜索深度上限（会被限制为 49）
+/// - `filter_queue_id`: 队列模式筛选（0 或负数表示不筛选）
+/// - `filter_champion_id`: 英雄 ID 筛选（0 或负数表示不筛选）
+///
+/// # 返回值
+///
+/// - `Ok(MatchHistory)`: 筛选后的对局记录（最多 10 条）
+/// - `Err(String)`: 查询失败时的错误信息
+///
+/// # 筛选逻辑
+///
+/// 1. 分页获取对局记录（每页最多 50 条）
+/// 2. 应用筛选条件（队列模式 + 英雄）
+/// 3. 收集匹配结果直到达到 10 条或搜索完指定范围
+/// 4. 对匹配结果增强详情
+///
+/// # 常量
+///
+/// - `MAX_RESULTS_TO_FIND`: 最多返回 10 条匹配记录
+/// - `PAGE_SIZE`: 每次 API 请求获取 50 条
 #[tauri::command]
 pub async fn get_filter_match_history_by_name(
     name: String,
@@ -119,6 +233,23 @@ pub async fn get_filter_match_history_by_name(
     Ok(result_history)
 }
 
+/// 检查对局是否匹配筛选条件。
+///
+/// # 参数
+///
+/// - `game`: 对局数据
+/// - `filter_queue_id`: 队列模式筛选（<= 0 表示不筛选）
+/// - `filter_champion_id`: 英雄 ID 筛选（<= 0 表示不筛选）
+///
+/// # 返回值
+///
+/// - `true`: 对局匹配所有筛选条件
+/// - `false`: 对局不匹配某些条件
+///
+/// # 匹配逻辑
+///
+/// - 队列匹配: `filter_queue_id <= 0` 或 `game.queue_id == filter_queue_id`
+/// - 英雄匹配: `filter_champion_id <= 0` 或参与者中使用了指定英雄
 fn game_matches_filters(game: &Game, filter_queue_id: i32, filter_champion_id: i32) -> bool {
     let queue_matches = filter_queue_id <= 0 || game.queue_id == filter_queue_id;
     let champion_matches = filter_champion_id <= 0

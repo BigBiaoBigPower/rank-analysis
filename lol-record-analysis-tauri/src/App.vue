@@ -17,8 +17,8 @@
 </template>
 
 <script lang="ts" setup>
-import Framework from '../src/components/Framework.vue'
-import { useSettingsStore } from './pinia/setting'
+import Framework from '@renderer/components/Framework.vue'
+import { useSettingsStore } from '@renderer/pinia/setting'
 import { computed } from 'vue'
 import { GlobalThemeOverrides } from 'naive-ui'
 

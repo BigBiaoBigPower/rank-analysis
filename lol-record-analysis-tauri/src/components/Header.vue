@@ -10,7 +10,7 @@
         type="text"
         size="small"
         placeholder="输入召唤师"
-        v-model:value="value"
+        v-model:value="searchValue"
         @keyup.enter="onClinkSearch"
       >
         <template #suffix>
@@ -61,8 +61,8 @@
     </div>
   </n-flex>
 </template>
-<script lang="ts" setup>
-import router from '../router'
+<script setup lang="ts">
+import { ref, computed } from 'vue'
 import {
   Search,
   LogoGithub,
@@ -72,42 +72,89 @@ import {
   SunnyOutline,
   MoonOutline
 } from '@vicons/ionicons5'
-import { computed, ref } from 'vue'
-import { Window } from '@tauri-apps/api/window'
-import { useSettingsStore } from '@renderer/pinia/setting'
 import { darkTheme } from 'naive-ui'
+import { Window } from '@tauri-apps/api/window'
+
+import router from '@renderer/router'
+import { useSettingsStore } from '@renderer/pinia/setting'
+
+/**
+ * 应用顶部导航栏组件
+ *
+ * 提供应用的核心导航和控制功能：
+ * - 品牌展示（Logo + 标题）
+ * - 召唤师搜索功能
+ * - 主题切换（亮色/暗色）
+ * - 窗口控制（最小化/最大化/关闭）
+ * - GitHub 项目链接
+ *
+ * @example
+ * <!-- 在 Framework.vue 中使用 -->
+ * <n-layout-header class="header" bordered>
+ *   <Header />
+ * </n-layout-header>
+ */
+
+/** 当前应用窗口实例，用于执行窗口控制操作 */
 const currentWindow = Window.getCurrent()
 
-const openGithubLink = () => {
+/** 搜索输入框的值 */
+const searchValue = ref('')
+
+/** 设置状态管理 Store */
+const settingsStore = useSettingsStore()
+
+/**
+ * 主题开关状态
+ * 根据当前主题是否为暗色主题计算开关状态
+ */
+const themeSwitch = computed(() => settingsStore.theme.name !== darkTheme.name)
+
+/**
+ * 打开项目 GitHub 主页
+ * 在新标签页中打开项目仓库链接
+ */
+const openGithubLink = (): void => {
   window.open('https://github.com/wnzzer/rank-analysis', '_blank')
 }
 
-const value = ref('')
-const settingsStore = useSettingsStore()
-const themeSwitch = computed(() => {
-  return settingsStore.theme.name !== darkTheme.name
-})
+/**
+ * 执行召唤师搜索
+ * 将用户输入的召唤师名称作为查询参数跳转到战绩查询页面
+ * 使用时间戳作为查询参数确保每次搜索都会触发页面刷新
+ *
+ * @example
+ * 用户输入 "SummonerName" 后按回车或点击搜索按钮
+ * 页面跳转到 /Record?name=SummonerName&t=1234567890
+ */
+const onClinkSearch = async (): Promise<void> => {
+  if (!searchValue.value.trim()) return
 
-function onClinkSearch() {
-  router
-    .push({
-      path: '/Record',
-      query: { name: value.value, t: Date.now() } // 添加动态时间戳作为查询参数
-    })
-    .then(() => {
-      value.value = ''
-    })
+  await router.push({
+    path: '/Record',
+    query: { name: searchValue.value, t: Date.now() }
+  })
+  searchValue.value = ''
 }
 
-const minimizeWindow = () => {
+/**
+ * 最小化应用窗口
+ */
+const minimizeWindow = (): void => {
   currentWindow.minimize()
 }
 
-const maximizeWindow = () => {
+/**
+ * 最大化/还原应用窗口
+ */
+const maximizeWindow = (): void => {
   currentWindow.toggleMaximize()
 }
 
-const closeWindow = () => {
+/**
+ * 关闭应用窗口
+ */
+const closeWindow = (): void => {
   currentWindow.close()
 }
 </script>

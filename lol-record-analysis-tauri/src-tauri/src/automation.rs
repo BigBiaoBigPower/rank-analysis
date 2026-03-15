@@ -1,3 +1,30 @@
+//! 自动化功能模块
+//!
+//! 提供英雄联盟客户端的自动化操作功能：
+//! - 自动接受匹配
+//! - 自动开始寻找对局
+//! - 自动选择英雄
+//! - 自动禁用英雄
+//!
+//! # 架构
+//!
+//! ```text
+//! AutomationManager (单例)
+//!     └── HashMap<task_name, AutomationTask>
+//!             └── Task (Tokio JoinHandle)
+//!                     └── 自动化逻辑循环
+//! ```
+//!
+//! # 使用示例
+//!
+//! ```rust,ignore
+//! // 启动自动化系统
+//! start_automation().await;
+//!
+//! // 自动化任务会根据配置文件自动启动
+//! // 配置变更时会通过回调自动启停任务
+//! ```
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
@@ -13,17 +40,31 @@ use crate::lcu::api::champion_select::{
 use crate::lcu::api::lobby::Lobby;
 use crate::lcu::api::phase::get_phase;
 
+/// 全局自动化管理器实例
+///
+/// 使用 OnceLock 实现线程安全的懒加载单例模式
 static AUTOMATION_MANAGER: OnceLock<AutomationManager> = OnceLock::new();
 
+/// 单个自动化任务的句柄和状态
 #[derive(Debug)]
 struct AutomationTask {
+    /// 任务名称（用于标识和日志）
     _name: String,
+    /// Tokio 任务句柄，用于中止任务
     handle: Option<JoinHandle<()>>,
+    /// 关闭信号发送端，用于优雅停止任务
     shutdown_tx: Option<watch::Sender<bool>>,
 }
 
+/// 自动化任务管理器
+///
+/// 负责管理所有自动化任务的生命周期，包括：
+/// - 启动新任务
+/// - 停止现有任务
+/// - 处理配置变更
 #[derive(Debug)]
 struct AutomationManager {
+    /// 存储所有运行中的任务
     tasks: Arc<Mutex<HashMap<String, AutomationTask>>>,
 }
 
@@ -105,7 +146,19 @@ impl AutomationManager {
 
 use std::future::Future;
 
-/// 自动接受匹配
+/// 自动接受匹配任务。
+///
+/// 每 100 毫秒检测一次游戏阶段，当检测到 "ReadyCheck" 阶段时自动接受匹配。
+///
+/// # 逻辑流程
+///
+/// 1. 每 100ms 轮询一次游戏阶段
+/// 2. 检测到 `READYCHECK` 阶段时调用 `post_accept_match()`
+/// 3. 记录错误日志但不中断任务
+///
+/// # 注意
+///
+/// 此任务会持续运行直到被显式停止或程序退出。
 async fn start_accept_match_automation() {
     log::info!("Starting accept match automation");
     let mut ticker = interval(Duration::from_millis(100));
@@ -128,7 +181,25 @@ async fn start_accept_match_automation() {
     }
 }
 
-/// 自动开始匹配
+/// 自动开始匹配任务。
+///
+/// 当玩家处于大厅且是房主时，自动开始寻找对局。
+///
+/// # 逻辑流程
+///
+/// 1. 每秒检测一次游戏阶段
+/// 2. 检测状态变化，处理匹配取消后的自动恢复逻辑
+/// 3. 检查是否在大厅阶段 (`LOBBY`)
+/// 4. 检查是否为自定义游戏（跳过）
+/// 5. 检查当前用户是否为房主
+/// 6. 调用 `Lobby::post_match_search()` 开始匹配
+/// 7. 等待 6 秒避免过于频繁的请求
+///
+/// # 状态管理
+///
+/// - `auto_match_enabled`: 控制是否启用自动匹配
+/// - 当从 `MATCHMAKING` 回到 `LOBBY` 时自动禁用（玩家取消了匹配）
+/// - 当离开 `LOBBY` 时自动重新启用
 async fn start_match_automation() {
     log::info!("Starting match automation");
     let mut ticker = interval(Duration::from_secs(1));
@@ -188,7 +259,7 @@ async fn start_match_automation() {
         if !auto_match_enabled && cur_state != LOBBY {
             log::info!("Re-enabling auto-match");
             auto_match_enabled = true;
-            last_search_state = cur_state; // ✅ 必须更新状态！
+            last_search_state = cur_state; // 必须更新状态！
             continue;
         }
 
@@ -261,7 +332,23 @@ async fn start_match_automation() {
     }
 }
 
-/// 判断当前用户是否是房主
+/// 判断当前用户是否是房主。
+///
+/// # 参数
+///
+/// - `members`: 房间成员列表
+///
+/// # 返回值
+///
+/// - `Ok(true)`: 当前用户是房主
+/// - `Ok(false)`: 当前用户不是房主
+/// - `Err(String)`: 获取当前用户信息失败
+///
+/// # 逻辑
+///
+/// 1. 获取当前登录的召唤师信息
+/// 2. 在成员列表中查找自己的记录
+/// 3. 检查 `is_leader` 字段
 async fn is_leader(members: &[crate::lcu::api::lobby::Member]) -> Result<bool, String> {
     use crate::lcu::api::summoner::Summoner;
 
@@ -283,7 +370,19 @@ async fn is_leader(members: &[crate::lcu::api::lobby::Member]) -> Result<bool, S
     Ok(am_leader)
 }
 
-/// 自动选择英雄
+/// 自动选择英雄任务。
+///
+/// 在选人阶段自动选择配置的英雄。
+///
+/// # 逻辑流程
+///
+/// 1. 每 2 秒检测一次游戏阶段
+/// 2. 当进入 `CHAMPSELECT` 阶段时执行选人逻辑
+/// 3. 调用 `start_select_champion()` 执行具体选人操作
+///
+/// # 注意
+///
+/// 选人逻辑包括：排除已被禁用的英雄、排除队友已选的英雄、按优先级选择
 async fn start_champion_select_automation() {
     log::info!("Starting champion select automation");
     let mut ticker = interval(Duration::from_secs(2));
@@ -310,6 +409,23 @@ async fn start_champion_select_automation() {
     }
 }
 
+/// 执行英雄选择操作。
+///
+/// # 返回值
+///
+/// - `Ok(())`: 选人操作完成（或无需操作）
+/// - `Err(String)`: 操作失败
+///
+/// # 逻辑流程
+///
+/// 1. 获取选人阶段会话信息
+/// 2. 从配置读取预设英雄列表
+/// 3. 排除已被禁用的英雄（敌方禁用）
+/// 4. 排除队友已选的英雄
+/// 5. 从预设列表中选择第一个可用英雄
+/// 6. 如果轮到我的选择回合：
+///    - 如果是锁定阶段：锁定英雄
+///    - 如果是预选阶段：预选英雄
 async fn start_select_champion() -> Result<(), String> {
     let select_session = get_champion_select_session().await?;
     let my_cell_id = select_session.local_player_cell_id;
@@ -448,7 +564,19 @@ async fn start_select_champion() -> Result<(), String> {
     Ok(())
 }
 
-/// 自动禁用英雄
+/// 自动禁用英雄任务。
+///
+/// 在选人阶段自动禁用配置的英雄。
+///
+/// # 逻辑流程
+///
+/// 1. 每 2 秒检测一次游戏阶段
+/// 2. 当进入 `CHAMPSELECT` 阶段时执行禁用逻辑
+/// 3. 调用 `start_ban_champion()` 执行具体禁用操作
+///
+/// # 注意
+///
+/// 禁用逻辑包括：检查是否已禁用、排除已被禁用的英雄、排除队友预选的英雄
 async fn start_champion_ban_automation() {
     log::info!("Starting champion ban automation");
     let mut ticker = interval(Duration::from_secs(2));
@@ -475,6 +603,22 @@ async fn start_champion_ban_automation() {
     }
 }
 
+/// 执行英雄禁用操作。
+///
+/// # 返回值
+///
+/// - `Ok(())`: 禁用操作完成（或无需操作）
+/// - `Err(String)`: 操作失败
+///
+/// # 逻辑流程
+///
+/// 1. 获取选人阶段会话信息
+/// 2. 从配置读取预设禁用英雄列表
+/// 3. 检查是否已经禁用（避免重复禁用）
+/// 4. 排除已被禁用的英雄（敌方或队友禁用）
+/// 5. 排除队友预选的英雄
+/// 6. 从预设列表中选择第一个可用英雄
+/// 7. 如果轮到我的禁用回合，执行禁用
 async fn start_ban_champion() -> Result<(), String> {
     let select_session = get_champion_select_session().await?;
     let my_cell_id = select_session.local_player_cell_id;
@@ -610,6 +754,21 @@ async fn start_ban_champion() -> Result<(), String> {
     Ok(())
 }
 
+/// 初始化并启动自动化任务。
+///
+/// 根据配置文件中的开关状态启动对应的自动化任务。
+///
+/// # 启动的任务
+///
+/// - `start_match`: 自动开始匹配（`settings.auto.startMatchSwitch`）
+/// - `accept_match`: 自动接受匹配（`settings.auto.acceptMatchSwitch`）
+/// - `ban_champion`: 自动禁用英雄（`settings.auto.banChampionSwitch`）
+/// - `pick_champion`: 自动选择英雄（`settings.auto.pickChampionSwitch`）
+///
+/// # 配置格式
+///
+/// 配置值为布尔类型或包含 `value` 字段的映射：
+/// - `Value::Boolean(true)` 或 `Map({"value": Boolean(true)})` 表示启用
 async fn init_run_automation() {
     let manager = AUTOMATION_MANAGER.get_or_init(AutomationManager::new);
     log::info!("Initializing automation tasks");
@@ -670,6 +829,37 @@ async fn init_run_automation() {
     log::info!("Automation tasks initialization completed");
 }
 
+/// 启动自动化系统。
+///
+/// 这是自动化模块的主入口函数，执行以下操作：
+///
+/// 1. 初始化自动化管理器
+/// 2. 根据配置启动初始任务
+/// 3. 注册配置变更回调，实现动态启停
+///
+/// # 配置变更处理
+///
+/// 当以下配置项变更时，会自动启动或停止对应任务：
+/// - `settings.auto.startMatchSwitch`: 自动开始匹配
+/// - `settings.auto.acceptMatchSwitch`: 自动接受匹配
+/// - `settings.auto.pickChampionSwitch`: 自动选择英雄
+/// - `settings.auto.banChampionSwitch`: 自动禁用英雄
+///
+/// # 使用示例
+///
+/// ```rust,ignore
+/// // 在应用程序启动时调用
+/// pub fn run() {
+///     tauri::Builder::default()
+///         .setup(|app| {
+///             tauri::async_runtime::spawn(async move {
+///                 start_automation().await;
+///             });
+///             Ok(())
+///         })
+///         ...
+/// }
+/// ```
 pub async fn start_automation() {
     log::info!("========== Starting Automation System ==========");
     init_run_automation().await;

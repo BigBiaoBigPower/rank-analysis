@@ -50,6 +50,12 @@ jobs:
           npm run typecheck
           echo "✅ TypeScript check passed"
 
+      - name: Run unit tests
+        run: |
+          echo "🧪 Running frontend unit tests..."
+          npm run test
+          echo "✅ Frontend tests passed"
+
   rust-quality:
     name: Rust Code Quality
     runs-on: windows-latest
@@ -90,6 +96,12 @@ jobs:
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run unit tests
+        run: |
+          echo "🧪 Running Rust unit tests..."
+          cargo test
+          echo "✅ Rust tests passed"
 
   security-audit:
     name: Security Audit

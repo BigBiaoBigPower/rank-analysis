@@ -1,3 +1,44 @@
+//! # 配置管理模块
+//!
+//! 提供应用程序配置的持久化存储和缓存管理。
+//!
+//! ## 主要功能
+//!
+//! - **配置缓存**: 使用 Moka 缓存实现高性能的配置读取
+//! - **YAML 持久化**: 配置数据以 YAML 格式存储在本地文件
+//! - **变更回调**: 支持注册配置变更监听器
+//! - **类型安全**: 支持多种数据类型的配置值
+//!
+//! ## 架构
+//!
+//! ```text
+//! Config Cache (Moka)
+//!     ├── Memory Cache (TTL)
+//!     └── YAML File (config.yaml)
+//!
+//! Callback System
+//!     └── ON_CHANGE_CALLBACK_ARR
+//!         └── Vec<ConfigCallback>
+//! ```
+//!
+//! ## 使用示例
+//!
+//! ```rust,ignore
+//! // 初始化配置缓存
+//! init_config().await?;
+//!
+//! // 读取配置
+//! let value = get_config("settings.theme").await?;
+//!
+//! // 写入配置
+//! put_config("settings.theme".to_string(), Value::String("dark".to_string())).await?;
+//!
+//! // 注册变更回调
+//! register_on_change_callback(|key, value| {
+//!     println!("Config changed: {} = {:?}", key, value);
+//! });
+//! ```
+
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -6,26 +47,79 @@ use std::io::{BufReader, BufWriter};
 use std::sync::{LazyLock, Mutex};
 use tokio::sync::OnceCell;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+/// 配置值的枚举类型，支持多种数据类型。
+///
+/// # 变体说明
+///
+/// - `Null`: 空值
+/// - `String`: 字符串值
+/// - `Integer`: 整数值 (i64)
+/// - `Float`: 浮点数值 (f64)
+/// - `Boolean`: 布尔值
+/// - `List`: 列表（数组）
+/// - `Map`: 键值对映射
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged)]
 pub enum Value {
+    /// 空值类型
     Null,
+    /// 字符串类型
     String(String),
+    /// 整数类型
     Integer(i64),
+    /// 浮点数类型
     Float(f64),
+    /// 布尔类型
     Boolean(bool),
+    /// 列表类型
     List(Vec<Value>),
+    /// 映射类型
     Map(HashMap<String, Value>),
 }
 
+/// 配置变更回调函数类型。
+///
+/// 参数:
+/// - `&str`: 变更的配置键
+/// - `&Value`: 新的配置值
 type ConfigCallback = Box<dyn Fn(&str, &Value) + Send + Sync>;
+
+/// 回调函数列表类型，使用 Mutex 保证线程安全。
 type CallbackList = Mutex<Vec<ConfigCallback>>;
 
+/// 配置文件路径常量。
 static CONFIG_PATH: &str = "config.yaml";
+
+/// 全局配置变更回调列表。
+///
+/// 使用 `LazyLock` 实现线程安全的懒加载初始化。
 static ON_CHANGE_CALLBACK_ARR: LazyLock<CallbackList> = LazyLock::new(|| Mutex::new(Vec::new()));
 
+/// 全局配置缓存实例。
+///
+/// 使用 `OnceCell` 确保只初始化一次，提供异步安全的单例模式。
 static CACHE: OnceCell<Cache<String, Value>> = OnceCell::const_new();
 
+/// 获取全局配置缓存实例。
+///
+/// 如果缓存尚未初始化，会自动从配置文件加载数据并初始化缓存。
+///
+/// # 返回值
+///
+/// 返回全局配置缓存的静态引用。
+///
+/// # 初始化流程
+///
+/// 1. 检查缓存是否已初始化
+/// 2. 如果未初始化，读取 `config.yaml` 文件
+/// 3. 将所有配置项加载到缓存中
+/// 4. 返回缓存实例
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// let cache = get_cache().await;
+/// ```
 pub async fn get_cache() -> &'static Cache<String, Value> {
     CACHE
         .get_or_init(|| async {
@@ -55,6 +149,21 @@ pub async fn get_cache() -> &'static Cache<String, Value> {
         .await
 }
 
+/// 注册配置变更回调函数。
+///
+/// 当配置值通过 `put_config` 修改时，所有注册的回调函数都会被调用。
+///
+/// # 参数
+///
+/// - `callback`: 回调函数，接收配置键和新值作为参数
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// register_on_change_callback(|key, value| {
+///     log::info!("Config changed: {} = {:?}", key, value);
+/// });
+/// ```
 pub fn register_on_change_callback<F>(callback: F)
 where
     F: Fn(&str, &Value) + Send + Sync + 'static,
@@ -65,7 +174,18 @@ where
         .push(Box::new(callback));
 }
 
-// Initialize cache with config data
+/// 初始化配置缓存。
+///
+/// 从配置文件加载所有配置项到内存缓存中。
+///
+/// # 返回值
+///
+/// - `Ok(())`: 初始化成功（或配置文件不存在）
+/// - `Err(...)`: 读取配置文件时发生错误
+///
+/// # 注意
+///
+/// 此方法通常在应用程序启动时调用一次。后续配置访问应使用 `get_cache()` 或 `get_config()`。
 pub async fn init_config() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match read_config(CONFIG_PATH) {
         Ok(config) => {
@@ -78,7 +198,18 @@ pub async fn init_config() -> Result<(), Box<dyn std::error::Error + Send + Sync
     Ok(())
 }
 
-// Read config file
+/// 从文件读取配置。
+///
+/// 内部辅助函数，从 YAML 文件解析配置数据。
+///
+/// # 参数
+///
+/// - `path`: 配置文件路径
+///
+/// # 返回值
+///
+/// - `Ok(HashMap)`: 成功解析的配置映射
+/// - `Err(...)`: 文件读取或解析错误
 fn read_config(
     path: &str,
 ) -> Result<HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
@@ -88,7 +219,14 @@ fn read_config(
     Ok(config)
 }
 
-// Write config to file
+/// 将配置写入文件。
+///
+/// 内部辅助函数，将当前缓存中的所有配置持久化到 YAML 文件。
+///
+/// # 返回值
+///
+/// - `Ok(())`: 写入成功
+/// - `Err(...)`: 文件写入错误
 async fn write_config() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let config: HashMap<String, Value> = get_cache()
         .await
@@ -102,7 +240,20 @@ async fn write_config() -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
     Ok(())
 }
 
-// Choose a reasonable zero-value by key convention
+/// 根据配置键生成默认值。
+///
+/// 根据键名后缀推断合适的默认值类型：
+/// - `*Switch` / `*Enabled`: 返回 `Boolean(false)`
+/// - `*Slice` / `*List` / `*Array`: 返回空列表
+/// - 其他: 返回空字符串
+///
+/// # 参数
+///
+/// - `key`: 配置键名
+///
+/// # 返回值
+///
+/// 根据键名推断的默认值
 fn zero_value_for_key(key: &str) -> Value {
     if key.ends_with("Switch") || key.ends_with("Enabled") {
         Value::Boolean(false)
@@ -114,8 +265,34 @@ fn zero_value_for_key(key: &str) -> Value {
     }
 }
 
-// Helper function to extract boolean value from Value enum
-// Handles both direct Boolean and Map({"value": Boolean(...)}) formats
+/// 从 Value 中提取布尔值。
+///
+/// 支持两种格式：
+/// - 直接的 `Boolean` 变体
+/// - 嵌套映射格式 `Map({"value": Boolean(...)})`
+///
+/// # 参数
+///
+/// - `value`: 要提取的配置值
+///
+/// # 返回值
+///
+/// - `Some(true/false)`: 成功提取布尔值
+/// - `None`: 无法提取布尔值
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// let val = Value::Boolean(true);
+/// assert_eq!(extract_bool(&val), Some(true));
+///
+/// let nested = Value::Map({
+///     let mut m = HashMap::new();
+///     m.insert("value".to_string(), Value::Boolean(false));
+///     m
+/// });
+/// assert_eq!(extract_bool(&nested), Some(false));
+/// ```
 pub fn extract_bool(value: &Value) -> Option<bool> {
     match value {
         Value::Boolean(b) => Some(*b),
@@ -130,7 +307,27 @@ pub fn extract_bool(value: &Value) -> Option<bool> {
     }
 }
 
-// Get config value from cache
+/// 从缓存获取配置值。
+///
+/// 如果键不存在，返回根据键名推断的默认值。
+///
+/// # 参数
+///
+/// - `key`: 配置键名
+///
+/// # 返回值
+///
+/// - `Ok(Value)`: 配置值或默认值
+/// - `Err(String)`: 缓存访问错误
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// match get_config("settings.theme").await {
+///     Ok(value) => println!("Theme: {:?}", value),
+///     Err(e) => eprintln!("Error: {}", e),
+/// }
+/// ```
 pub async fn get_config(key: &str) -> Result<Value, String> {
     match get_cache().await.get(key).await {
         Some(v) => {
@@ -145,11 +342,188 @@ pub async fn get_config(key: &str) -> Result<Value, String> {
     }
 }
 
-// Put config into cache and persist
+/// 设置配置值并持久化。
+///
+/// 将配置值写入缓存，触发所有变更回调，并保存到配置文件。
+///
+/// # 参数
+///
+/// - `key`: 配置键名
+/// - `value`: 配置值
+///
+/// # 返回值
+///
+/// - `Ok(())`: 设置成功
+/// - `Err(String)`: 写入文件时发生错误
+///
+/// # 副作用
+///
+/// - 更新内存缓存
+/// - 触发所有注册的变更回调
+/// - 写入 YAML 配置文件
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// put_config(
+///     "settings.theme".to_string(),
+///     Value::String("dark".to_string())
+/// ).await?;
+/// ```
 pub async fn put_config(key: String, value: Value) -> Result<(), String> {
     get_cache().await.insert(key.clone(), value.clone()).await;
     for callback in ON_CHANGE_CALLBACK_ARR.lock().unwrap().iter() {
         callback(&key, &value);
     }
     write_config().await.map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn should_extract_bool_from_boolean_value() {
+        let value = Value::Boolean(true);
+        assert_eq!(extract_bool(&value), Some(true));
+
+        let value = Value::Boolean(false);
+        assert_eq!(extract_bool(&value), Some(false));
+    }
+
+    #[test]
+    fn should_extract_bool_from_map_value() {
+        let mut map = HashMap::new();
+        map.insert("value".to_string(), Value::Boolean(true));
+        let value = Value::Map(map);
+        assert_eq!(extract_bool(&value), Some(true));
+    }
+
+    #[test]
+    fn should_return_none_for_non_boolean_value() {
+        let value = Value::String("true".to_string());
+        assert_eq!(extract_bool(&value), None);
+
+        let value = Value::Integer(1);
+        assert_eq!(extract_bool(&value), None);
+
+        let value = Value::Null;
+        assert_eq!(extract_bool(&value), None);
+    }
+
+    #[test]
+    fn should_return_none_for_map_without_boolean() {
+        let mut map = HashMap::new();
+        map.insert("other".to_string(), Value::Boolean(true));
+        let value = Value::Map(map);
+        assert_eq!(extract_bool(&value), None);
+    }
+
+    #[test]
+    fn should_create_value_variants() {
+        let null_val = Value::Null;
+        let string_val = Value::String("test".to_string());
+        let int_val = Value::Integer(42);
+        let float_val = Value::Float(3.14);
+        let bool_val = Value::Boolean(true);
+
+        // 验证可以创建各种变体
+        match null_val {
+            Value::Null => (),
+            _ => panic!("Expected Null"),
+        }
+
+        match string_val {
+            Value::String(s) => assert_eq!(s, "test"),
+            _ => panic!("Expected String"),
+        }
+
+        match int_val {
+            Value::Integer(i) => assert_eq!(i, 42),
+            _ => panic!("Expected Integer"),
+        }
+
+        match float_val {
+            Value::Float(f) => assert_eq!(f, 3.14),
+            _ => panic!("Expected Float"),
+        }
+
+        match bool_val {
+            Value::Boolean(b) => assert_eq!(b, true),
+            _ => panic!("Expected Boolean"),
+        }
+    }
+
+    #[test]
+    fn should_create_list_value() {
+        let list = Value::List(vec![
+            Value::Integer(1),
+            Value::Integer(2),
+            Value::Integer(3),
+        ]);
+
+        match list {
+            Value::List(items) => {
+                assert_eq!(items.len(), 3);
+                assert_eq!(items[0], Value::Integer(1));
+            }
+            _ => panic!("Expected List"),
+        }
+    }
+
+    #[test]
+    fn should_create_map_value() {
+        let mut map = HashMap::new();
+        map.insert("key1".to_string(), Value::String("value1".to_string()));
+        map.insert("key2".to_string(), Value::Integer(42));
+
+        let value = Value::Map(map);
+
+        match value {
+            Value::Map(m) => {
+                assert_eq!(m.len(), 2);
+                assert_eq!(m.get("key1"), Some(&Value::String("value1".to_string())));
+                assert_eq!(m.get("key2"), Some(&Value::Integer(42)));
+            }
+            _ => panic!("Expected Map"),
+        }
+    }
+
+    #[test]
+    fn should_clone_value() {
+        let original = Value::String("test".to_string());
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
+    }
+
+    #[test]
+    fn should_serialize_and_deserialize_value() {
+        let value = Value::String("test".to_string());
+        let yaml = serde_yaml::to_string(&value).unwrap();
+        let deserialized: Value = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(value, deserialized);
+
+        let value = Value::Integer(42);
+        let yaml = serde_yaml::to_string(&value).unwrap();
+        let deserialized: Value = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(value, deserialized);
+
+        let value = Value::Boolean(true);
+        let yaml = serde_yaml::to_string(&value).unwrap();
+        let deserialized: Value = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(value, deserialized);
+    }
+
+    #[test]
+    fn should_serialize_and_deserialize_map() {
+        let mut map = HashMap::new();
+        map.insert("key".to_string(), Value::String("value".to_string()));
+        map.insert("number".to_string(), Value::Integer(42));
+
+        let yaml = serde_yaml::to_string(&map).unwrap();
+        let deserialized: HashMap<String, Value> = serde_yaml::from_str(&yaml).unwrap();
+
+        assert_eq!(map, deserialized);
+    }
 }

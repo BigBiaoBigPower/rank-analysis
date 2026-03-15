@@ -3,7 +3,7 @@
  * @module composables/useAssetUrl
  */
 
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { useAssetUrl } from './useAssetUrl'
 
 // Mock http module

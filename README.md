@@ -1,7 +1,7 @@
 <div align="center">
   <img src="./lol-record-analysis-tauri/src-tauri/icons/256x256.png" width="128" height="128" alt="Logo" />
   <h1>Rank Analysis</h1>
-  <p>基于 LCU API 的英雄联盟排位分析工具</p>
+  <p>🎮 League of Legends Ranked Match Analysis Tool based on LCU API</p>
 
   <!-- Badges -->
   <p>
@@ -35,154 +35,154 @@
       <img src="https://img.shields.io/github/stars/wnzzer/lol-rank-record-analysis?style=flat-square&color=orange" alt="Stars">
     </a>
   </p>
+
+  <p>
+    <a href="./README.zh-CN.md">中文</a> | <strong>English</strong>
+  </p>
 </div>
 
 ---
 
-## 📖 简介
+## 📖 Introduction
 
-**Rank Analysis** 是一个基于 Riot 提供的 LCU API 开发的英雄联盟排位数据分析工具。致力于帮助玩家轻松查询战绩、识别队友风险，并结合 AI 做更直观的单场复盘。本项目使用 **Tauri 2.0** 构建，结合 Rust 的高性能与 Web 前端的灵活性，打造最精简、性能最好的战绩查询体验。
+**Rank Analysis** is a League of Legends ranked match data analysis tool developed based on Riot's LCU API. It helps players easily query match history, identify teammate risks, and provides AI-powered intuitive match analysis. This project is built with **Tauri 2.0**, combining Rust's high performance with the flexibility of web frontends to deliver the most lightweight and efficient match query experience.
 
-## ✨ 功能特点
+## ✨ Features
 
-### 📊 战绩查询
-- **高低胜率高亮**：直观展示队友近期表现。
-- **MVP 显示**：快速识别大腿玩家。
-- **玩家标签**：自动标记连胜、连败、非排位玩家。
-- **关系显示**：识别宿敌与好友。
+### 📊 Match History Query
+- **Win Rate Highlighting**: Intuitively displays teammates' recent performance
+- **MVP Display**: Quickly identify carry players
+- **Player Tags**: Auto-tags win streaks, loss streaks, and non-ranked players
+- **Relationship Display**: Identifies nemeses and friends
 
-### 🔍 对局分析
-- **预组队检测**：标记预先组队的玩家（开黑检测）。
-- **历史遭遇**：标记曾经遇见过的玩家。
-- **单场详情面板**：独立窗口展示 10 名玩家的 KDA、经济、补刀、承伤、推塔、装备、技能与符文/海克斯强化。
-- **海克斯强化识别**：竞技场等特殊队列会自动切换为强化展示，并区分不同稀有度。
+### 🔍 Match Analysis
+- **Premade Detection**: Marks pre-grouped players (duo/squad detection)
+- **Match History**: Marks previously encountered players
+- **Match Details Panel**: Independent window showing 10 players' KDA, economy, CS, damage taken, towers destroyed, items, skills, and runes/augments
+- **Augment Recognition**: Special queues like Arena automatically switch to augment display with rarity differentiation
 
-### 🤖 AI 分析
-- **房间级 AI 判断**：在组队/排队阶段可根据最近战绩、常用英雄、位置分布和标签信息，快速给出队友与对手的风险判断。
-- **整局 AI 复盘**：在对局详情中可一键生成整场胜负归因，定位谁最尽力、谁最犯罪、谁被打爆、谁属于被队友拖累。
-- **单人 AI 复盘**：支持对任意参战玩家单独分析，判断其属于尽力、犯罪、被爆、被连累还是正常发挥。
-- **数据证据驱动**：AI 结论会结合 KDA、伤害占比、承伤占比、经济、参团率、推塔和补刀等数据生成，不是纯主观点评。
-- **结果缓存**：同一场对局的 AI 分析结果会在本地会话内缓存，减少重复请求等待时间。
+### 🤖 AI Analysis
+- **Lobby-level AI Assessment**: During lobby/queue phase, quickly assess teammate and opponent risks based on recent match history, favorite champions, role distribution, and tag information
+- **Full Match AI Review**: One-click generation of complete match outcome analysis in match details, identifying who performed best, who fed, who got stomped, and who was dragged down by teammates
+- **Single Player AI Review**: Supports individual analysis for any participant, determining if they performed well, poorly, got stomped, were dragged down, or played normally
+- **Data Evidence-Driven**: AI conclusions are generated based on KDA, damage share, tank share, gold, kill participation, towers, and CS - not pure subjective commentary
+- **Result Caching**: Same-match AI analysis results are cached locally within the session to reduce repeated request wait times
 
-### 🤖 自动化辅助
-- **自动匹配**：自动开始寻找对局。
-- **自动接受**：匹配成功后自动接受。
-- **自动 BP**：自动选择和禁用预设英雄。
+### 🤖 Automation Assistant
+- **Auto Matchmaking**: Automatically starts searching for matches
+- **Auto Accept**: Automatically accepts matches when found
+- **Auto Pick/Ban**: Automatically selects and bans preset champions
 
-
-## 📸 软件预览
+## 📸 Screenshots
 
 <div align="center">
-  <img src="./public/1.png" alt="软件主界面预览" width="45%" />
-  <img src="./public/1-2.png" alt="软件主界面预览" width="45%" />
+  <img src="./public/1.png" alt="Main Interface Preview" width="45%" />
+  <img src="./public/1-2.png" alt="Main Interface Preview" width="45%" />
 </div>
 <div align="center">
-  <img src="./public/2.png" alt="分析功能演示" width="45%" />
-  <img src="./public/3.png" alt="自动化功能演示" width="45%" />
+  <img src="./public/2.png" alt="Analysis Feature Demo" width="45%" />
+  <img src="./public/3.png" alt="Automation Feature Demo" width="45%" />
 </div>
 <div align="center">
-  <img src="./public/4.png" alt="标签管理" width="45%" />
+  <img src="./public/4.png" alt="Tag Management" width="45%" />
 </div>
 <div align="center">
-  <img src="./public/5.png" alt="AI 分析" width="45%" />
+  <img src="./public/5.png" alt="AI Analysis" width="45%" />
 </div>
 
+## 🚀 Usage
 
+1. **Download**:
+   - Download the latest build from the [Release Page](https://github.com/wnzzer/lol-rank-record-analysis/releases)
+   - Or download via [UpgradeLink CDN](https://download.upgrade.toolsetlink.com/download?appKey=rX76p0GShXom2yNnlsSDYw) (Thanks to UpgradeLink for the support)
+     ![UpgradeLink Platform Logo](./public/upgrade_link.png)
 
-## 🚀 使用方法
+   > **System Requirements**: Windows 10 1803 or higher (WebView2 support required)
 
-1. **下载**：
-   - 前往 [Release 页面](https://github.com/wnzzer/lol-rank-record-analysis/releases) 下载最新的构建版本压缩包。
-   - 使用 UpgradeLink分发平台提供的 [CDN下载地址](https://download.upgrade.toolsetlink.com/download?appKey=rX76p0GShXom2yNnlsSDYw)下载 （感谢 UpgradeLink分发平台提供支持） 
-     ![UpgradeLink 平台 Logo](./public/upgrade_link.png)
+2. **Run**: Extract and run the executable directly - no admin privileges required
 
-   > **系统要求**: Windows 10 1803 及以上版本（需支持 WebView2）。
+3. **Connect**: The software automatically detects the game client when running
+   > **Notes**:
+   > - Currently only supports Tencent servers (China)
+   > - Can be opened mid-game and will auto-connect
+   > - AI analysis requires internet access to call model services; network unavailability only affects AI features, not basic match history queries
 
+## 🛠️ Development & Build
 
+If you want to compile this project yourself, follow these steps:
 
-
-2. **运行**：解压后直接运行可执行文件，无需管理员权限。
-
-3. **连接**：软件运行时会自动检测游戏客户端。
-   > **注意**: 
-   > - 当前仅支持腾讯服务器。
-   > - 支持在游戏启动后中途打开软件，会自动连接。
-  > - AI 分析功能需要联网调用模型服务，网络不可用时仅影响 AI 相关能力，不影响基础战绩查询。
-
-## 🛠️ 开发与构建
-
-如果你想自己编译本项目，请按照以下步骤操作：
-
-### 环境准备
-- [Node.js](https://nodejs.org/) (推荐 LTS 版本)
+### Prerequisites
+- [Node.js](https://nodejs.org/) (LTS version recommended)
 - [Rust](https://www.rust-lang.org/)
-- C++ 构建环境 (Visual Studio C++ Build Tools)
+- C++ Build Environment (Visual Studio C++ Build Tools)
 
-### 构建步骤
+### Build Steps
 
-1. 克隆项目并进入 Tauri 目录：
+1. Clone and enter the Tauri directory:
    ```bash
    cd lol-record-analysis-tauri
    ```
 
-2. 安装依赖：
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. 运行开发模式：
+3. Run in development mode:
    ```bash
    npm run tauri dev
    ```
 
-4. 编译生产版本：
+4. Build production version:
    ```bash
    npm run tauri build
    ```
-   构建完成后，可执行文件位于 `src-tauri/target/release/bundle` 目录下。
+   The executable will be located in `src-tauri/target/release/bundle`
 
-## 📊 代码质量
+## 📊 Code Quality
 
-本项目采用现代化的开发工具链，确保代码质量和一致性：
+This project uses modern development toolchain to ensure code quality and consistency:
 
-### 质量工具
-- **ESLint**: 静态代码分析
-- **Prettier**: 代码格式化
-- **TypeScript**: 严格类型检查
-- **Clippy**: Rust 代码 Lint
-- **Rustfmt**: Rust 代码格式化
-- **GitHub Actions**: 自动化 CI/CD
+### Quality Tools
+- **ESLint**: Static code analysis
+- **Prettier**: Code formatting
+- **TypeScript**: Strict type checking
+- **Clippy**: Rust code linting
+- **Rustfmt**: Rust code formatting
+- **GitHub Actions**: Automated CI/CD
 
-### 质量检查命令
+### Quality Check Commands
 
 ```bash
-# 前端代码检查
+# Frontend code checks
 cd lol-record-analysis-tauri
-npm run lint          # ESLint 检查
-npm run format        # Prettier 格式化
-npm run typecheck     # TypeScript 类型检查
+npm run lint          # ESLint check
+npm run format        # Prettier formatting
+npm run typecheck     # TypeScript type check
 
-# 后端代码检查 (需要 Windows 环境)
+# Backend code checks (requires Windows environment)
 cd src-tauri
-cargo fmt             # 格式化
-cargo clippy          # Lint 检查
+cargo fmt             # Formatting
+cargo clippy          # Lint check
 ```
 
-详细的代码质量标准和贡献指南，请参阅：
-- [代码质量标准](./CODE_QUALITY.md)
-- [贡献指南](./CONTRIBUTING.md)
+For detailed code quality standards and contribution guidelines, please refer to:
+- [Code Quality Standards](./CODE_QUALITY.md)
+- [Contributing Guide](./CONTRIBUTING.md)
 
-## 🤝 参与贡献
+## 🤝 Contributing
 
-欢迎提交 Issue 和 Pull Request！
+Issues and Pull Requests are welcome!
 
-- **反馈问题**: 通过 [GitHub Issues](https://github.com/wnzzer/lol-rank-record-analysis/issues) 提交。
-- **提交代码**: 欢迎改进代码或增加新功能。
+- **Bug Reports**: Submit via [GitHub Issues](https://github.com/wnzzer/lol-rank-record-analysis/issues)
+- **Code Contributions**: Improvements and new features are welcome
 
-## 📄 开源协议
+## 📄 License
 
-本项目基于 [MIT License](./LICENSE) 开源。
+This project is open-sourced under the [MIT License](./LICENSE).
 
-## Star 趋势
+> Maintained with AI assistance experiments (Claude / LLM tooling)
+
+## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=wnzzer/lol-rank-record-analysis&type=Date)](https://star-history.com/#wnzzer/lol-rank-record-analysis&Date)

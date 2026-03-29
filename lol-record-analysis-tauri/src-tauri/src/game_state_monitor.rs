@@ -154,8 +154,14 @@ impl GameStateMonitor {
             .duration_since(self.last_push_time)
             .unwrap_or(Duration::from_secs(0));
 
-        // 如果刚连接上（之前未连接，现在连接了），启动 WebSocket 监听
+        // 如果刚连接上（之前未连接，现在连接了），补全资源缓存并启动 WebSocket 监听
         if new_state.connected && !self.last_state.connected {
+            if crate::lcu::api::asset::champion_cache_is_empty() {
+                log::info!("LCU 已连接，正在补全静态资源缓存...");
+                tokio::spawn(async move {
+                    crate::lcu::api::asset::init().await;
+                });
+            }
             log::info!("LCU 已连接，正在启动 WebSocket 监听...");
             let app_handle = self.app_handle.clone();
             tokio::spawn(async move {

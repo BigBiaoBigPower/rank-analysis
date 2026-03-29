@@ -117,21 +117,51 @@ static BINARY_CACHE: LazyLock<Cache<String, (Vec<u8>, String)>> = LazyLock::new(
         .build()
 });
 
+/// 英雄缓存是否为空（用于判断启动时是否因未开客户端而未能拉取 LCU 静态资源）。
+pub fn champion_cache_is_empty() -> bool {
+    CHAMPION_CACHE
+        .read()
+        .map(|g| g.is_empty())
+        .unwrap_or(true)
+}
+
 pub async fn init() {
     log::info!("Initializing asset API caches");
-    let items = lcu_get::<Vec<Item>>(constant::api::ITEM_URI).await.unwrap();
-    let champions = lcu_get::<Vec<Champion>>(constant::api::CHAMPION_URI)
-        .await
-        .unwrap();
-    let spells = lcu_get::<Vec<Spell>>(constant::api::SPELL_URI)
-        .await
-        .unwrap();
-    let perk_styles = lcu_get::<PerkStylesResponse>(constant::api::PERK_URI)
-        .await
-        .unwrap();
-    let perks = lcu_get::<Vec<Perk>>(constant::api::PERKS_URI)
-        .await
-        .unwrap();
+    let items = match lcu_get::<Vec<Item>>(constant::api::ITEM_URI).await {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("未从 LCU 加载物品列表（可先启动英雄联盟客户端）: {}", e);
+            Vec::new()
+        }
+    };
+    let champions = match lcu_get::<Vec<Champion>>(constant::api::CHAMPION_URI).await {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("未从 LCU 加载英雄列表（可先启动英雄联盟客户端）: {}", e);
+            Vec::new()
+        }
+    };
+    let spells = match lcu_get::<Vec<Spell>>(constant::api::SPELL_URI).await {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("未从 LCU 加载召唤师技能列表: {}", e);
+            Vec::new()
+        }
+    };
+    let perk_styles = match lcu_get::<PerkStylesResponse>(constant::api::PERK_URI).await {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("未从 LCU 加载符文风格列表: {}", e);
+            PerkStylesResponse { styles: Vec::new() }
+        }
+    };
+    let perks = match lcu_get::<Vec<Perk>>(constant::api::PERKS_URI).await {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("未从 LCU 加载符文列表: {}", e);
+            Vec::new()
+        }
+    };
     let cherry_augments =
         match lcu_get::<Vec<CherryAugment>>(constant::api::CHERRY_AUGMENTS_URI).await {
             Ok(augments) => augments,

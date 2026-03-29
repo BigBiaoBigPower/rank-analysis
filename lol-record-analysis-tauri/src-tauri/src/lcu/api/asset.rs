@@ -119,10 +119,7 @@ static BINARY_CACHE: LazyLock<Cache<String, (Vec<u8>, String)>> = LazyLock::new(
 
 /// 英雄缓存是否为空（用于判断启动时是否因未开客户端而未能拉取 LCU 静态资源）。
 pub fn champion_cache_is_empty() -> bool {
-    CHAMPION_CACHE
-        .read()
-        .map(|g| g.is_empty())
-        .unwrap_or(true)
+    CHAMPION_CACHE.read().map(|g| g.is_empty()).unwrap_or(true)
 }
 
 pub async fn init() {
